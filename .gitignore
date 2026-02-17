@@ -1,0 +1,27 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente (NUNCA envie isto!)
+.env
+
+# Uploads temporários
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backups
+backups/
+*.sql
