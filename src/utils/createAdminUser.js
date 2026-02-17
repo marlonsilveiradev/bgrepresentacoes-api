@@ -16,18 +16,14 @@ async function createInitialAdmin() {
         }
 
         const adminData = {
-            name: process.env.ADMIN_NAME || 'Administrador',
-            email: process.env.ADMIN_EMAIL || 'admin@cardflags.com',
-            password: process.env.ADMIN_PASSWORD || 'Admin@123456',
+            name: process.env.ADMIN_NAME,
+            email: process.env.ADMIN_EMAIL.toLocaleLowerCase(),
+            password: process.env.ADMIN_PASSWORD,
             role: 'admin',
             is_active: true,
             created_by: null
         };
 
-        if (adminData.email === 'admin@cardflags.com' && adminData.password === 'Admin@123456') {
-            console.warn('⚠️  ATENÇÃO: Usando credenciais padrão!');
-            console.warn('⚠️  Configure ADMIN_EMAIL e ADMIN_PASSWORD no .env');
-        }
 
         const admin = await User.create(adminData);
 

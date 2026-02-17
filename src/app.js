@@ -6,6 +6,7 @@ const express = require('express');
 const morgan = require('morgan');
 const compression = require('compression');
 require('dotenv').config();
+const { version } = require('../package.json')
 
 // Importa middlewares de segurança
 const {
@@ -60,7 +61,7 @@ app.get('/', (req, res) => {
     res.status(200).json({
         success: true,
         message: 'Card Flags System API',
-        version: '1.0.0',
+        version: version,
         endpoints: {
             auth: '/api/auth',
             clients: '/api/clients',
