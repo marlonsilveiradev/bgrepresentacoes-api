@@ -481,14 +481,14 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 
 ## 👨‍💻 Autor
 
-Desenvolvido com ❤️ por [Seu Nome]
+Desenvolvido com ❤️ por Marlon Silveira
 
 ---
 
 ## 📞 Suporte
 
-- 📧 Email: suporte@cardflags.com
-- 💬 Issues: [GitHub Issues](https://github.com/seu-usuario/card-flags-system/issues)
+- 📧 Email: marlonsilveira.dev@gmail.com
+
 
 ---
 
