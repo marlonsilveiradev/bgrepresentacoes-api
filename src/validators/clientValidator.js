@@ -55,6 +55,20 @@ function validateCNPJ(cnpj) {
     return true;
 }
 
+
+/**
+ * Teste customizado para detectar HTML/XSS
+ */
+const noHtmlTest = {
+    name: 'no-html',
+    message: 'Campo não pode conter tags HTML ou scripts',
+    test: (value) => {
+        if (!value) return true;
+        // Detecta tags HTML
+        return !/<[^>]*>/g.test(value);
+    }
+};
+
 /**
  * Schema de validação para CRIAR CLIENTE
  */
@@ -63,6 +77,7 @@ const createClientSchema = yup.object().shape({
     name: yup
         .string()
         .required('Nome é obrigatório')
+        .test(noHtmlTest)
         .min(3, 'Nome muito curto')
         .max(255, 'Nome muito longo')
         .trim(),
@@ -70,12 +85,14 @@ const createClientSchema = yup.object().shape({
     razao_social: yup
         .string()
         .required('Razão social é obrigatória')
+        .test(noHtmlTest)
         .min(3, 'Razão social muito curta')
         .max(255, 'Razão social muito longa')
         .trim(),
 
     ramo_atividade: yup
         .string()
+        .test(noHtmlTest)
         .max(255, 'Ramo de atividade muito longo')
         .trim()
         .nullable(),
@@ -207,12 +224,6 @@ const createClientSchema = yup.object().shape({
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             return arr && arr.every(id => uuidRegex.test(id));
         }),
-
-    // selected_flags: yup
-    //     .array()
-    //     .of(yup.string().uuid('ID de bandeira inválido'))
-    //     .min(1, 'Selecione pelo menos uma bandeira')
-    //     .required('Bandeiras são obrigatórias'),
 
     // Partner (opcional)
     partner_id: yup

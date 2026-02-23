@@ -20,6 +20,8 @@ const {
     validatePublicCheck,
     validateDocumentUpdate
 } = require('../validators/clientValidator');
+const { sanitizeAfterUpload } = require('../middlewares/sanitizeAfterUpload');
+const { securityMonitor } = require('../utils/securityLogger');
 
 /**
  * GET /api/public/check-status
@@ -41,6 +43,8 @@ router.post(
     requireUserOrAdmin,
     uploadFields,
     handleUploadError,
+    securityMonitor,
+    sanitizeAfterUpload,
     validateRequiredFiles,
     validateCreateClient,
     clientController.createClient
@@ -88,6 +92,7 @@ router.put(
     requireUserOrAdmin,
     uploadFields,
     handleUploadError,
+    sanitizeAfterUpload,
     validateDocumentUpdate,
     clientController.updateClientDocuments
 );
