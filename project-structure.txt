@@ -1,0 +1,127 @@
+.
+├── auditoria_completo.txt
+├── audit_project.sh
+├── docker-compose.dev.yml
+├── docker-compose.prod.yml
+├── Dockerfile
+├── .dockerignore
+├── .env
+├── .env.example
+├── .github
+│   └── workflows
+│       └── ci.yml
+├── .gitignore
+├── index.js
+├── package.json
+├── package-lock.json
+├── project-structure.txt
+├── README.md
+├── .sequelizerc
+├── src
+│   ├── config
+│   │   ├── app.js
+│   │   ├── cloudinary.js
+│   │   ├── config.js
+│   │   ├── database.js
+│   │   ├── logger.js
+│   │   └── swagger.js
+│   ├── controllers
+│   │   ├── AuthController.js
+│   │   ├── ClientController.js
+│   │   ├── ClientFlagController.js
+│   │   ├── DocumentController.js
+│   │   ├── FlagController.js
+│   │   ├── OnboardingController.js
+│   │   ├── PlanController.js
+│   │   ├── ReportController.js
+│   │   ├── SaleController.js
+│   │   └── UserController.js
+│   ├── database
+│   │   ├── migrations
+│   │   │   ├── 20260310000001-create-users.js
+│   │   │   ├── 20260310000002-create-flags.js
+│   │   │   ├── 20260310000003-create-plans.js
+│   │   │   ├── 20260310000004-create-clients.js
+│   │   │   ├── 20260310000005-create-plan-flags.js
+│   │   │   ├── 20260310000006-create-client-flags.js
+│   │   │   ├── 20260310000007-create-client-documents.js
+│   │   │   ├── 20260310000008-create-sales.js
+│   │   │   ├── 20260310000009-create-sale-flags.js
+│   │   │   ├── 20260310000010-create-client-bank-accounts.js
+│   │   │   ├── 20260311000011-add-ie-to-clients.js
+│   │   │   └── 20260312173905-add-deleted-at-to-bank-accounts.js
+│   │   └── seeders
+│   │       ├── 20260310000001-admin-user.js
+│   │       ├── 20260310000002-initial-flags.js
+│   │       ├── 20260310000003-initial-plans.js
+│   │       └── 20260310000004-plan-flags.js
+│   ├── middlewares
+│   │   ├── authMiddleware.js
+│   │   ├── errorHandler.js
+│   │   ├── rateLimiter.js
+│   │   ├── uploadMiddleware.js
+│   │   └── validationMiddleware.js
+│   ├── models
+│   │   ├── ClientBankAccount.js
+│   │   ├── ClientDocument.js
+│   │   ├── ClientFlag.js
+│   │   ├── Client.js
+│   │   ├── Flag.js
+│   │   ├── index.js
+│   │   ├── PlanFlag.js
+│   │   ├── Plan.js
+│   │   ├── SaleFlag.js
+│   │   ├── Sale.js
+│   │   └── User.js
+│   ├── repositories
+│   ├── routes
+│   │   ├── authRoutes.js
+│   │   ├── clientFlagRoutes.js
+│   │   ├── clientRoutes.js
+│   │   ├── documentRoutes.js
+│   │   ├── flagRoutes.js
+│   │   ├── index.js
+│   │   ├── onboardingRoutes.js
+│   │   ├── planRoutes.js
+│   │   ├── reportRoutes.js
+│   │   ├── saleRoutes.js
+│   │   └── userRoutes.js
+│   ├── server.js
+│   ├── services
+│   │   ├── AuthService.js
+│   │   ├── ClientFlagService.js
+│   │   ├── ClientService.js
+│   │   ├── FlagService.js
+│   │   ├── OnboardingService.js
+│   │   ├── PlanService.js
+│   │   ├── ReportService.js
+│   │   ├── SaleService.js
+│   │   ├── StorageService.js
+│   │   └── UserService.js
+│   ├── utils
+│   │   ├── AppError.js
+│   │   ├── auth.js
+│   │   ├── catchAsync.js
+│   │   ├── clientStatus.js
+│   │   └── protocol.js
+│   └── validators
+│       ├── authValidators.js
+│       ├── clientValidators.js
+│       ├── flagValidators.js
+│       ├── onboardingValidator.js
+│       ├── planValidators.js
+│       ├── reportValidators.js
+│       ├── saleValidators.js
+│       └── userValidators.js
+├── test-db.js
+├── tests
+│   ├── integration
+│   │   └── user.test.js
+│   ├── load
+│   │   └── load_test.js
+│   └── unit
+│       └── clientFlag.test.js
+└── .vscode
+    └── settings.json
+
+21 directories, 104 files

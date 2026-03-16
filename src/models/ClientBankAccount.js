@@ -1,0 +1,59 @@
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  const ClientBankAccount = sequelize.define(
+    'ClientBankAccount',
+    {
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
+      client_id: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        references: { model: 'clients', key: 'id' },
+      },
+      bank_code: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+      },
+      bank_name: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+      },
+      agency: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+      },
+      agency_digit: {
+        type: DataTypes.STRING(2),
+        allowNull: true,
+      },
+      account: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+      },
+      account_digit: {
+        type: DataTypes.STRING(2),
+        allowNull: false,
+      },
+      account_type: {
+        type: DataTypes.ENUM('checking', 'savings'),
+        allowNull: false,
+      },
+    },
+    {
+      tableName: 'client_bank_accounts',
+      indexes: [
+        { fields: ['client_id'] },
+      ],
+    }
+  );
+
+  ClientBankAccount.associate = (db) => {
+    ClientBankAccount.belongsTo(db.Client, { foreignKey: 'client_id', as: 'client' });
+  };
+
+  return ClientBankAccount;
+};
