@@ -41,26 +41,17 @@ module.exports = {
   },
 
   production: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host:     process.env.DB_HOST,
-    port:     parseInt(process.env.DB_PORT, 10) || 5432,
-    dialect:  process.env.DB_DIALECT || 'postgres',
-    logging:  false,
-    dialectOptions: {
-      ssl: { require: true, rejectUnauthorized: false },
-    },
-    pool: {
-      max:     10,
-      min:     2,
-      acquire: 30000,
-      idle:    10000,
-    },
-    define: {
-      timestamps:  true,
-      underscored: true,
-      paranoid:    true,
-    },
+  use_env_variable: 'DATABASE_URL',
+  dialect: 'postgres',
+  logging: false,
+  dialectOptions: {
+    ssl: { require: true, rejectUnauthorized: false },
   },
+  pool: {
+    max: 10, min: 2, acquire: 30000, idle: 10000,
+  },
+  define: {
+    timestamps: true, underscored: true, paranoid: true,
+  },
+},
 };
