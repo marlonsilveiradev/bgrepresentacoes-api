@@ -16,6 +16,13 @@ const errorHandler = require('../middlewares/errorHandler');
 const { defaultLimiter } = require('../middlewares/rateLimiter');
 
 const app = express();
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Middlewares de Segurança e Performance
 app.use(helmet());
@@ -36,13 +43,7 @@ if (process.env.NODE_ENV !== 'production') {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
 
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-  });
-});
+
 
 // Rotas da API
 app.use('/api/v1', routes);
