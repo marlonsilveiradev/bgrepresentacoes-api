@@ -6,20 +6,28 @@ const logger = require('../config/logger');
 const env = appConfig.env;
 const config = dbConfig[env];
 
-const sequelize = new Sequelize(
-  config.database,
-  config.username,
-  config.password,
-  {
-    host: config.host,
-    port: config.port,
-    dialect: config.dialect,
-    logging: config.logging,
-    pool: config.pool,
-    define: config.define,
-    dialectOptions: config.dialectOptions || {},
-  }
-);
+const sequelize = config.use_env_variable
+  ? new Sequelize(process.env[config.use_env_variable], {
+      dialect: config.dialect,
+      logging: config.logging,
+      pool: config.pool,
+      define: config.define,
+      dialectOptions: config.dialectOptions || {},
+    })
+  : new Sequelize(
+      config.database,
+      config.username,
+      config.password,
+      {
+        host: config.host,
+        port: config.port,
+        dialect: config.dialect,
+        logging: config.logging,
+        pool: config.pool,
+        define: config.define,
+        dialectOptions: config.dialectOptions || {},
+      }
+    );
 
 // Import models
 const User               = require('./User')(sequelize);
