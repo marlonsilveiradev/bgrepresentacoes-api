@@ -25,6 +25,7 @@ app.get('/health', (req, res) => {
 });
 
 // Middlewares de Segurança e Performance
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(xss());
 app.use(mongoSanitize());
