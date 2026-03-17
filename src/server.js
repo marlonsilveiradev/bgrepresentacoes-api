@@ -13,7 +13,7 @@ async function startServer() {
     logger.info('Conexão com o banco de dados estabelecida com sucesso.');
     
     // 2. Inicia o servidor Express
-    app.listen(PORT, () => {
+    app.listen(PORT,'0.0.0.0', () => {
       logger.info(`Servidor rodando na porta ${PORT}`);
       logger.info(`Documentação Swagger disponível em: http://localhost:${PORT}/api-docs`);
     });
