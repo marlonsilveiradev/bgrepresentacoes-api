@@ -24,6 +24,12 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Rate Limiting e Documentação
+app.use(defaultLimiter);
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
+
 // Middlewares de Segurança e Performance
 app.set('trust proxy', 1);
 app.use(helmet());
@@ -38,11 +44,7 @@ app.use(pinoHttp({ logger }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rate Limiting e Documentação
-app.use(defaultLimiter);
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-}
+
 
 
 

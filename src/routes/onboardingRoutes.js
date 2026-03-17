@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const OnboardingController = require('../controllers/OnboardingController');
-const { authMiddleware } = require('../middlewares/authMiddleware');
+const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
 const { onboardingUpload } = require('../middlewares/uploadMiddleware');
-const authorizeRoles = require('../middlewares/authorizeRoles');
+
 
 
 /**
@@ -42,6 +42,6 @@ const authorizeRoles = require('../middlewares/authorizeRoles');
  *       200:
  *         description: Onboarding iniciado com sucesso
  */
-router.post('/', authMiddleware, authorizeRoles('admin', 'user'), onboardingUpload, OnboardingController.start);
+router.post('/', authMiddleware, authorize('admin', 'user'), onboardingUpload, OnboardingController.start);
 
 module.exports = router;

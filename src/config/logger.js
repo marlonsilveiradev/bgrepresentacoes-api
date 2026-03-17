@@ -39,6 +39,7 @@ const EMAIL_INTERVAL = 5 * 60 * 1000; // 5 minutos entre e-mails
 let lastEmailTime = 0;
 const originalError = logger.error.bind(logger);
 logger.error = function (obj, ...args) {
+  const now = Date.now();
   // Dispara o e-mail em background
   if (now - lastEmailTime > EMAIL_INTERVAL) {
    lastEmailTime = now;

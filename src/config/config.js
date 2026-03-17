@@ -55,7 +55,7 @@ module.exports = {
 
   upload: {
     maxFileSize:  3 * 1024 * 1024, // 3MB
-    allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'],
+    allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
   },
 
   admin: {
