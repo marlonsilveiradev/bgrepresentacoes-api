@@ -15,7 +15,7 @@ const router = Router();
 
 
 router.get('/', (req, res) => {
-  res.json({ api: 'Vale Alimentação API', version: 'v1', status: 'online' });
+  res.json({ api: 'BG Representações API', version: 'v1', status: 'online' });
 });
 
 // ─── Rotas Públicas ──────────────────────────────────────────────────────────
