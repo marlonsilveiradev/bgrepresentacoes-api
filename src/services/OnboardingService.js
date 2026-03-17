@@ -42,7 +42,7 @@ const onboardClient = async (requester, rawData, files) => {
       }, { transaction: t });
 
       // B. Dados Bancários
-      await ClientBankAccount.create({
+      const bankAccount = await ClientBankAccount.create({
         ...rawData,
         client_id: client.id,
       }, { transaction: t });
@@ -169,6 +169,7 @@ const onboardClient = async (requester, rawData, files) => {
       return { 
         client: {
           ...client.toJSON(),
+          bankAccount: bankAccount.toJSON(),
           bandeiras_contratadas: flagsParaProcessar.map(f => ({ id: f.id, name: f.name }))
         }, 
         sale: {
