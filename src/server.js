@@ -5,6 +5,7 @@ const { sequelize } = require('./models');
 const logger = require('./config/logger');
 
 const PORT = config.port || 3000;
+let server; 
 
 async function startServer() {
   try {
@@ -13,7 +14,7 @@ async function startServer() {
     logger.info('Conexão com o banco de dados estabelecida com sucesso.');
     
     // 2. Inicia o servidor Express
-    app.listen(PORT,'0.0.0.0', () => {
+    server = app.listen(PORT,'0.0.0.0', () => {
       logger.info(`Servidor rodando na porta ${PORT}`);
       logger.info(`Documentação Swagger disponível em: http://localhost:${PORT}/api-docs`);
     });
