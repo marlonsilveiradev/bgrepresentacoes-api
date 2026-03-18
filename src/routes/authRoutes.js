@@ -31,10 +31,10 @@ const router = Router();
  *             properties:
  *               email:
  *                 type: string
- *                 example: marlonsilveira.dev@gmail.com
+ *                 example: admin@seuemail.com
  *               password:
  *                 type: string
- *                 example: Marlon@1512
+ *                 example: sua_senha_secreta
  *     responses:
  *       200:
  *         description: |
