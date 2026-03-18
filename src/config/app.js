@@ -34,7 +34,7 @@ if (isSwaggerEnabled) {
     '/api-docs',
     basicAuth({
       users: {
-        admin: process.env.SWAGGER_PASSWORD || '1234',
+        admin: process.env.SWAGGER_PASSWORD || 'bg@api123',
       },
       challenge: true,
     }),
