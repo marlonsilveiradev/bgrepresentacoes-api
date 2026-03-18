@@ -8,6 +8,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const pinoHttp = require('pino-http');
 const swaggerUi = require('swagger-ui-express');
 const config = require('./config');
+const basicAuth = require('express-basic-auth');
 
 const logger = require('./logger');
 const swaggerSpec = require('./swagger');
@@ -26,8 +27,20 @@ app.get('/health', (req, res) => {
 
 // Rate Limiting e Documentação
 app.use(defaultLimiter);
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+const isSwaggerEnabled = process.env.SWAGGER_ENABLED === 'true';
+
+if (isSwaggerEnabled) {
+  app.use(
+    '/api-docs',
+    basicAuth({
+      users: {
+        admin: process.env.SWAGGER_PASSWORD || '1234',
+      },
+      challenge: true,
+    }),
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec)
+  );
 }
 
 // Middlewares de Segurança e Performance
