@@ -1,282 +1,93 @@
-# BG Representações API
+# 🚀 BG Representações API
 
-Backend responsável pelo gerenciamento de clientes, vendas e bandeiras de cartões de vale alimentação.
+API REST desenvolvida para gestão de clientes e operações comerciais da BG Representações.
 
-Esta API foi desenvolvida em Node.js utilizando Express e PostgreSQL e segue uma arquitetura moderna baseada em Service Layer Pattern com foco em segurança, escalabilidade e organização de código.
-
----
-
-# Visão Geral
-
-A aplicação fornece uma API REST responsável por:
-
-- Gestão de usuários
-- Cadastro de clientes
-- Gestão de bandeiras de cartões
-- Gestão de planos
-- Registro de vendas
-- Upload de documentos
-- Relatórios administrativos
-- Sistema de autenticação e autorização
+A aplicação foi construída com foco em boas práticas de arquitetura, segurança e organização de código, utilizando Node.js e Express.
 
 ---
 
-# Arquitetura
+## 🔗 Acesso à API
 
-A aplicação segue uma arquitetura em camadas para separação de responsabilidades.
+**Base URL:**
 
-src/
- ├── config
- ├── controllers
- ├── services
- ├── middlewares
- ├── models
- ├── routes
- ├── validators
- ├── utils
- ├── database
- │    ├── migrations
- │    └── seeders
+https://bgrepresentacoes-api-production.up.railway.app/api/v1
+
+**Health check:**
+
+GET /health
 
 ---
 
-# Controllers
+## 📄 Documentação (Swagger)
 
-Responsáveis por lidar apenas com requisições HTTP.
+A documentação interativa está disponível em:
 
-Funções principais:
+👉 https://bgrepresentacoes-api-production.up.railway.app/api-docs/
 
-- receber requisição
-- validar dados
-- chamar service
-- retornar resposta
+### 🔐 Acesso
 
----
+- usuário: admin  
+- senha: bg@api123  
 
-# Services
-
-Contêm toda a lógica de negócio da aplicação.
-
-Exemplos:
-
-- cálculo de valores de vendas
-- validação de regras de planos
-- associação de bandeiras
-- criação de clientes
+> A documentação permite testar as rotas diretamente pelo navegador.  
+> Algumas rotas exigem autenticação via token JWT.
 
 ---
 
-# Models
+## 🔐 Autenticação
 
-Representam as entidades do banco de dados utilizando Sequelize.
+A API utiliza autenticação baseada em JWT.
 
----
+**Fluxo básico:**
 
-# Middlewares
+1. Realizar login  
+2. Receber token  
+3. Enviar token no header das requisições  
 
-Responsáveis por funcionalidades transversais:
+Exemplo:
 
-- autenticação
-- autorização
-- tratamento de erros
-- rate limit
-- logging
+Authorization: Bearer <token>
 
 ---
 
-# Tecnologias Utilizadas
+## 🛡️ Segurança
 
-Principais tecnologias do projeto:
+A aplicação conta com diversas camadas de proteção:
 
-- Node.js
-- Express
-- PostgreSQL
-- Sequelize ORM
-- JWT Authentication
-- bcrypt
-- Cloudinary
-- Pino Logger
-- Swagger
-- Jest
+- Helmet (headers de segurança)  
+- Rate limiting (proteção contra abuso)  
+- CORS configurado por ambiente  
+- Sanitização contra NoSQL Injection  
+- Proteção contra XSS  
+- Compressão de respostas  
 
 ---
 
-# Segurança
+## ⚙️ Tecnologias utilizadas
 
-A aplicação implementa múltiplas camadas de segurança.
-
-Helmet  
-Proteção de headers HTTP.
-
-Rate Limiting  
-Proteção contra ataques de força bruta e flood.
-
-CORS  
-Controle de acesso entre domínios.
-
-JWT Authentication  
-Sistema de autenticação baseado em tokens.
-
-Password Hashing  
-Senhas criptografadas com bcrypt.
-
-Validação de Dados  
-Validação de entrada com Yup.
+- Node.js  
+- Express  
+- MongoDB  
+- Mongoose  
+- Swagger  
+- Pino (logging)  
 
 ---
 
-# Observabilidade
+## 📦 Deploy
 
-Sistema de logs estruturados utilizando Pino.
-
-Funcionalidades:
-
-- logs estruturados
-- rastreamento de erros
-- análise de requisições lentas
-- alerta por email em falhas críticas
+A aplicação está hospedada no Railway e preparada para deploy em VPS.
 
 ---
 
-# Banco de Dados
+## 🧪 Status do projeto
 
-Banco de dados baseado em PostgreSQL.
-
-Principais entidades:
-
-users  
-clients  
-flags  
-plans  
-sales  
-client_documents  
-client_flags  
-sale_flags  
-client_bank_accounts  
-
-Características da modelagem:
-
-- UUID como chave primária
-- Soft Delete
-- Índices otimizados
-- Foreign Keys
-- Constraints de integridade
+O backend está funcional e validado.  
+O frontend está em desenvolvimento e será integrado em breve.
 
 ---
 
-# Upload de Documentos
+## 👨‍💻 Autor
 
-Arquivos são armazenados utilizando Cloudinary.
-
-Por motivos de segurança:
-
-- a API não expõe URLs diretas
-- downloads são realizados via proxy seguro
-
----
-
-# Autenticação
-
-Sistema baseado em:
-
-Access Token (JWT)  
-Refresh Token
-
-Fluxo:
-
-login  
-refresh token  
-logout  
-change password  
-
----
-
-# Documentação da API
-
-A documentação da API está disponível em:
-
-/api-docs
-
-Gerada utilizando Swagger.
-
----
-
-# Instalação
-
-Clone o repositório
-
-git clone <url-do-repositorio>
-
-Entre na pasta do projeto
-
-cd projeto
-
-Instale as dependências
-
-npm install
-
----
-
-# Configuração
-
-Crie o arquivo .env baseado no exemplo
-
-cp .env.example .env
-
-Configure as variáveis de ambiente.
-
----
-
-# Banco de Dados
-
-Executar migrations
-
-npx sequelize-cli db:migrate
-
-Executar seeders
-
-npx sequelize-cli db:seed:all
-
----
-
-# Executar aplicação
-
-Modo desenvolvimento
-
-npm run dev
-
-Modo produção
-
-npm start
-
----
-
-# Testes
-
-Executar testes
-
-npm run test
-
-Executar cobertura de testes
-
-npm run test:coverage
-
-Cobertura mínima configurada:
-
-70%
-
----
-
-# Versionamento da API
-
-A API utiliza versionamento:
-
-/api/v1
-
----
-
-# Autor
-
-Marlon Silveira
-
-Sistema desenvolvido para gestão de vendas de bandeiras de cartões de vale alimentação.
+Marlon Silveira  
+GitHub: https://github.com/marlonsilveiradev
