@@ -36,8 +36,23 @@ app.use(helmet());
 app.use(xss());
 app.use(mongoSanitize());
 app.use(cors({
-  origin: config.cors.origin,
-  credentials: true
+  origin: (incomingOrigin, callback) => {
+    // Permite ferramentas sem origin (Postman, curl, health checks)
+    if (!incomingOrigin) return callback(null, true);
+
+    // Lê a variável de ambiente e separa por vírgula
+    const allowedList = (process.env.CORS_ORIGIN || 'http://localhost:3001')
+      .split(',')
+      .map(o => o.trim())
+      .filter(Boolean);
+
+    if (allowedList.includes(incomingOrigin)) {
+      callback(null, incomingOrigin); // espelha a origem — necessário com credentials: true
+    } else {
+      callback(new Error(`CORS bloqueado para origem: ${incomingOrigin}`));
+    }
+  },
+  credentials: true,
 }));
 app.use(compression());
 app.use(pinoHttp({ logger }));
