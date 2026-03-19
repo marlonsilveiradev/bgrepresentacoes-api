@@ -48,6 +48,6 @@ router.use(authMiddleware);
  *       404:
  *         description: Vínculo não encontrado
  */
-router.patch('/:id/status', authorize('admin'), ClientFlagController.updateStatus);
+router.patch('/:id/status', authorize('admin', 'user'), ClientFlagController.updateStatus);
 
 module.exports = router;
