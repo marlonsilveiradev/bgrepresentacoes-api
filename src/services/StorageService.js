@@ -14,12 +14,12 @@ const uploadToCloudinary = (buffer, customFilename = '') => {
     const uploadOptions = {
       folder:                    'bgrepresentacoes',
       type:                      'authenticated',   // sem acesso público direto
-      resource_type:             'image',
+      resource_type:             'auto',
       public_id:                 customFilename || `file_${Date.now()}`,
       use_filename:              false,
       unique_filename:           true,
       discard_original_filename: true,
-      overwrite:                 false,
+      overwrite:                 true,
     };
 
     const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
@@ -42,7 +42,7 @@ const deleteFromCloudinary = async (publicId) => {
   try {
     const result = await cloudinary.uploader.destroy(publicId, {
       type:          'authenticated',
-      resource_type: 'image',
+      resource_type: 'auto',
       invalidate:    true,
     });
     return result;

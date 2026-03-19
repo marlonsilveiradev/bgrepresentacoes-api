@@ -104,24 +104,24 @@ const getClientById = async (id, requester) => {
 const updateClient = async (id, requester, data, files = null) => {
   const client = await Client.findByPk(id);
   if (!client) throw new AppError('Cliente não encontrado.', 404);
- 
+
   _assertCanWrite(client, requester.id, requester.role);
- 
+
   const { partner_id, bankAccount, ...clientData } = data || {};
   const uploadedPublicIds = [];
   const oldPublicIdsToDelete = [];
- 
+
   if (partner_id && requester.role === 'admin') {
     const partner = await User.findByPk(partner_id);
     if (!partner || partner.role !== 'partner') throw new AppError('Parceiro inválido.', 422);
     clientData.partner_id = partner_id;
   }
- 
+
   const t = await Client.sequelize.transaction();
- 
+
   try {
     await client.update(clientData, { transaction: t });
- 
+
     if (bankAccount) {
       const [account, created] = await ClientBankAccount.findOrCreate({
         where: { client_id: id },
@@ -130,34 +130,36 @@ const updateClient = async (id, requester, data, files = null) => {
       });
       if (!created) await account.update(bankAccount, { transaction: t });
     }
- 
+
     if (files) {
       const toProcess = [];
- 
+
       if (files.contrato?.length > 0) {
         toProcess.push({ file: files.contrato[0], type: 'company_document' });
       }
- 
+
       if (files.documentos?.length > 0) {
         const types = ['proof_of_address', 'bank_account_proof', 'card_machine_proof'];
         files.documentos.forEach((file, index) => {
           if (types[index]) toProcess.push({ file, type: types[index] });
         });
       }
- 
+
       for (const item of toProcess) {
         const { file, type } = item;
- 
+
         const upload = await StorageService.uploadToCloudinary(file.buffer, `client_${id}_${type}`);
         uploadedPublicIds.push(upload.public_id);
- 
+
         const existingDoc = await ClientDocument.findOne({
           where: { client_id: id, document_type: type },
           transaction: t,
         });
- 
+
         if (existingDoc) {
-          oldPublicIdsToDelete.push(existingDoc.cloudinary_public_id);
+          if (existingDoc.cloudinary_public_id !== upload.public_id) {
+            oldPublicIdsToDelete.push(existingDoc.cloudinary_public_id);
+          }
           await existingDoc.update({
             cloudinary_public_id: upload.public_id,
             original_name: file.originalname,
@@ -177,15 +179,15 @@ const updateClient = async (id, requester, data, files = null) => {
         }
       }
     }
- 
+
     await t.commit();
- 
+
     for (const oldId of oldPublicIdsToDelete) {
       StorageService.deleteFromCloudinary(oldId).catch(e => logger.error(`Erro ao remover imagem antiga: ${e}`));
     }
- 
+
     return getClientById(id, requester);
- 
+
   } catch (error) {
     await t.rollback();
     for (const newId of uploadedPublicIds) {
@@ -215,8 +217,8 @@ const recalculateStatus = async (clientId, transaction = null) => {
       'status',
       [ClientFlag.sequelize.fn('COUNT', ClientFlag.sequelize.col('id')), 'total'],
     ],
-    group:       ['status'],
-    raw:         true,
+    group: ['status'],
+    raw: true,
     transaction,
   });
 
