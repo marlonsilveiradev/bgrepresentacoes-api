@@ -52,8 +52,19 @@ const getById = catchAsync(async (req, res, next) => {
 const updateClient = catchAsync(async (req, res) => {
   const rawFiles = req.files || [];
  
-  // Organiza o array plano do multer no formato esperado pelo service
-  // Se não vieram arquivos, passa null para o service pular o bloco de upload
+  // --- ADICIONE ESTE BLOCO ---
+  // Se vier no formato do FormData (com campo 'data' stringificado), faz o parse.
+  // Se não, usa o req.body normal.
+  let updateData = req.body;
+  if (req.body.data && typeof req.body.data === 'string') {
+    try {
+      updateData = JSON.parse(req.body.data);
+    } catch (err) {
+      return res.status(400).json({ status: 'error', message: 'JSON malformado no campo data' });
+    }
+  }
+  // ---------------------------
+
   const organizedFiles = rawFiles.length > 0
     ? {
         contrato:   rawFiles.filter(f => f.fieldname.trim() === 'contrato'),
@@ -64,7 +75,7 @@ const updateClient = catchAsync(async (req, res) => {
   const client = await ClientService.updateClient(
     req.params.id,
     req.user,
-    req.body,
+    updateData, // <--- Agora usamos o dado tratado
     organizedFiles
   );
  
@@ -74,6 +85,31 @@ const updateClient = catchAsync(async (req, res) => {
     data:    client,
   });
 });
+// const updateClient = catchAsync(async (req, res) => {
+//   const rawFiles = req.files || [];
+ 
+//   // Organiza o array plano do multer no formato esperado pelo service
+//   // Se não vieram arquivos, passa null para o service pular o bloco de upload
+//   const organizedFiles = rawFiles.length > 0
+//     ? {
+//         contrato:   rawFiles.filter(f => f.fieldname.trim() === 'contrato'),
+//         documentos: rawFiles.filter(f => f.fieldname.trim() === 'documentos'),
+//       }
+//     : null;
+ 
+//   const client = await ClientService.updateClient(
+//     req.params.id,
+//     req.user,
+//     req.body,
+//     organizedFiles
+//   );
+ 
+//   return res.status(200).json({
+//     status:  'success',
+//     message: 'Cliente atualizado com sucesso.',
+//     data:    client,
+//   });
+// });
 
 
 // GET /api/v1/clients/public/track/:protocol
