@@ -1,8 +1,8 @@
 require('dotenv').config();
+const logger = require('./config/logger');
 const app = require('./config/app');
 const config = require('./config/config');
 const { sequelize } = require('./models');
-const logger = require('./config/logger');
 
 const PORT = config.port || 3000;
 let server; 
