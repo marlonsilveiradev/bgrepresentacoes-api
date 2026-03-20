@@ -16,7 +16,7 @@ module.exports = (sequelize) => {
       },
       bank_code: {
         type: DataTypes.STRING(10),
-        allowNull: false,
+        allowNull: true,
       },
       bank_name: {
         type: DataTypes.STRING(100),
@@ -36,7 +36,7 @@ module.exports = (sequelize) => {
       },
       account_digit: {
         type: DataTypes.STRING(2),
-        allowNull: false,
+        allowNull: true,
       },
       account_type: {
         type: DataTypes.ENUM('checking', 'savings'),
