@@ -1,26 +1,23 @@
-# Usa a imagem estável do Node.js
-FROM node:20-alpine
-
-# Instala ferramentas necessárias para compilar dependências se necessário
+# 1. ESTÁGIO BASE (Comum a ambos)
+FROM node:20-alpine AS base
 RUN apk add --no-cache bash
-
-# Define o diretório de trabalho dentro do container
 WORKDIR /app
-
-# Copia os arquivos de dependências
 COPY package*.json ./
-
-# Instala as dependências
-RUN npm ci --omit=dev
-
-# Copia o restante dos arquivos do projeto
-COPY . .
-
-# Expõe a porta que a API utiliza
 EXPOSE 3000
 
-# rodar como usuário node (mais seguro)
-USER node
+# 2. ESTÁGIO DE DESENVOLVIMENTO (Usado localmente)
+FROM base AS development
+# Instala TUDO (incluindo nodemon e devDependencies)
+RUN npm install 
+COPY . .
+# O comando local será sobrescrito pelo docker-compose, mas deixamos um padrão
+CMD ["npm", "run", "dev"]
 
-# Comando para rodar a aplicação
+# 3. ESTÁGIO DE PRODUÇÃO (Usado pelo Railway)
+FROM base AS production
+# Instala apenas o essencial para rodar
+RUN npm ci --omit=dev
+COPY . .
+# Rodar como usuário node (segurança)
+USER node
 CMD ["node", "src/server.js"]

@@ -31,6 +31,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     container_name: bgrepresentacoes-api
     restart: unless-stopped
     env_file:
