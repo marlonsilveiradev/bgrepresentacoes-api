@@ -24,7 +24,7 @@ const mailTransport = nodemailer.createTransport({
   greetingTimeout: 10000,
   tls: {
     servername: process.env.SMTP_HOST, // Ajuda com certificados
-    addressFamily: 4 // Força o uso de IPv4 para evitar o erro ENETUNREACH
+    socketOptions: { family: 4 }, // Força o uso de IPv4 para evitar o erro ENETUNREACH
   }
 });
 
