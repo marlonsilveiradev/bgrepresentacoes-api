@@ -32,7 +32,7 @@ const authLimiter = rateLimit({
     // Este log específico disparará o e-mail de "Aviso de Segurança"
     logger.error({
       type: 'SECURITY_AUTH_BLOCK',
-      message: 'Bloqueio por múltiplas tentativas de login',
+      message: 'Bloqueio por múltiplas tentativas de login. Tente novamente em 15 minutos',
       ip: req.ip,
       path: req.path,
       userAgent: req.get('User-Agent')
