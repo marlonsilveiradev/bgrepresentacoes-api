@@ -20,6 +20,12 @@ const mailTransport = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  connectionTimeout: 10000, // 10 segundos de timeout
+  greetingTimeout: 10000,
+  tls: {
+    servername: process.env.SMTP_HOST, // Ajuda com certificados
+    addressFamily: 4 // Força o uso de IPv4 para evitar o erro ENETUNREACH
+  }
 });
 
 // ── 2. Verificação de conexão SMTP na inicialização ───────────────────────────
