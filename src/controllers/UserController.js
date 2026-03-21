@@ -59,7 +59,17 @@ const reactivate = catchAsync(async (req, res, next) => {
 
 const getProfile = catchAsync(async (req, res, next) => {
   const user = await UserService.getUserById(req.user.id);
-  return res.status(200).json({ status: 'success', data: user });
+
+  // 🔥 REGRA CENTRAL DO SEU SISTEMA
+  const mustChangePassword = user.last_login_at === null;
+
+  return res.status(200).json({
+    status: 'success',
+    data: {
+      ...user,
+      mustChangePassword, // ✅ AGORA O FRONT RECEBE CORRETAMENTE
+    },
+  });
 });
 
 const updateProfile = catchAsync(async (req, res, next) => {

@@ -63,3 +63,5 @@ Thumbs.db
 # Misc
 # =========================
 audit_export.sh
+api_audit.txt
+auditoria_completo.txt

@@ -2,7 +2,6 @@
 .
 ├── api_audit.txt
 ├── audit_export.sh
-├── auditoria_completo.txt
 ├── docker-compose.dev.yml
 ├── docker-compose.prod.yml
 ├── Dockerfile
@@ -53,7 +52,6 @@
 │   │       └── 20260310000004-plan-flags.js
 │   ├── middlewares
 │   │   ├── authMiddleware.js
-│   │   ├── authorizeRoles.js
 │   │   ├── errorHandler.js
 │   │   ├── rateLimiter.js
 │   │   ├── uploadMiddleware.js
@@ -118,7 +116,7 @@
     └── unit
         └── clientFlag.test.js
 
-18 directories, 100 files
+18 directories, 98 files
 
 ==== PACKAGE.JSON ====
 {
@@ -148,6 +146,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-basic-auth": "^1.2.1",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^7.3.1",
     "helmet": "^7.1.0",
@@ -203,10 +202,10 @@
 
 ==== SERVER.JS ====
 require('dotenv').config();
+const logger = require('./config/logger');
 const app = require('./config/app');
 const config = require('./config/config');
 const { sequelize } = require('./models');
-const logger = require('./config/logger');
 
 const PORT = config.port || 3000;
 let server; 
@@ -264,6 +263,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const pinoHttp = require('pino-http');
 const swaggerUi = require('swagger-ui-express');
 const config = require('./config');
+const basicAuth = require('express-basic-auth');
 
 const logger = require('./logger');
 const swaggerSpec = require('./swagger');
@@ -282,8 +282,20 @@ app.get('/health', (req, res) => {
 
 // Rate Limiting e Documentação
 app.use(defaultLimiter);
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+const isSwaggerEnabled = process.env.SWAGGER_ENABLED === 'true';
+
+if (isSwaggerEnabled) {
+  app.use(
+    '/api-docs',
+    basicAuth({
+      users: {
+        admin: process.env.SWAGGER_PASSWORD || 'bg@api123',
+      },
+      challenge: true,
+    }),
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec)
+  );
 }
 
 // Middlewares de Segurança e Performance
@@ -292,8 +304,23 @@ app.use(helmet());
 app.use(xss());
 app.use(mongoSanitize());
 app.use(cors({
-  origin: config.cors.origin,
-  credentials: true
+  origin: (incomingOrigin, callback) => {
+    // Permite ferramentas sem origin (Postman, curl, health checks)
+    if (!incomingOrigin) return callback(null, true);
+
+    // Lê a variável de ambiente e separa por vírgula
+    const allowedList = (process.env.CORS_ORIGIN || 'http://localhost:3001')
+      .split(',')
+      .map(o => o.trim())
+      .filter(Boolean);
+
+    if (allowedList.includes(incomingOrigin)) {
+      callback(null, incomingOrigin); // espelha a origem — necessário com credentials: true
+    } else {
+      callback(new Error(`CORS bloqueado para origem: ${incomingOrigin}`));
+    }
+  },
+  credentials: true,
 }));
 app.use(compression());
 app.use(pinoHttp({ logger }));
@@ -476,22 +503,56 @@ module.exports = {
   },
 },
 };
-const pino = require('pino');
+// ============================================================
+// src/config/logger.js
+// Logger Pino + alertas por e-mail em erros críticos
+// ============================================================
+
+'use strict';
+
+const pino       = require('pino');
 const nodemailer = require('nodemailer');
+
 const isProd = process.env.NODE_ENV === 'production';
 
-// 1. Configuração do transportador de e-mail (usando seus dados do .env)
+// ── 1. Transportador SMTP ─────────────────────────────────────────────────────
+
 const mailTransport = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT),
-  secure: false, // Porta 587 usa STARTTLS
+  host:   process.env.SMTP_HOST,
+  port:   parseInt(process.env.SMTP_PORT || '587', 10),
+  secure: false, // porta 587 usa STARTTLS
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  connectionTimeout: 10000, // 10 segundos de timeout
+  greetingTimeout: 10000,
+  tls: {
+    servername: process.env.SMTP_HOST, // Ajuda com certificados
+    socketOptions: { family: 4 }, // Força o uso de IPv4 para evitar o erro ENETUNREACH
+  }
 });
 
-// 2. Configuração do Logger
+// ── 2. Verificação de conexão SMTP na inicialização ───────────────────────────
+// Roda em background — não bloqueia o boot do servidor.
+// Se falhar, imprime o erro no console para aparecer nos logs do Railway.
+if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  mailTransport.verify((error) => {
+    if (error) {
+      // Este console.error aparece nos logs do Railway mesmo sem Pino
+      console.error('[logger] SMTP verify FALHOU — e-mails de alerta não serão enviados.');
+      console.error('[logger] Detalhe:', error.message);
+      console.error('[logger] Verifique SMTP_HOST, SMTP_PORT, SMTP_USER e SMTP_PASS no Railway.');
+    } else {
+      console.info('[logger] SMTP conectado com sucesso. Alertas por e-mail ativos.');
+    }
+  });
+} else {
+  console.warn('[logger] Variáveis SMTP não configuradas. Alertas por e-mail desativados.');
+}
+
+// ── 3. Configuração do Logger Pino ────────────────────────────────────────────
+
 const logger = isProd
   ? pino({ level: process.env.LOG_LEVEL || 'info' })
   : pino({
@@ -499,40 +560,72 @@ const logger = isProd
       transport: {
         target: 'pino-pretty',
         options: {
-          colorize: true,
+          colorize:      true,
           translateTime: 'SYS:standard',
-          ignore: 'pid,hostname'
-        }
-      }
+          ignore:        'pid,hostname',
+        },
+      },
     });
 
-// 3. Listener para disparar e-mail em caso de erro
-// Sempre que o logger emitir uma mensagem de nível 50 (error) ou 60 (fatal)
-logger.on('level-change', (lvl, val) => {
-  /* Opcional: monitorar mudanças de nível */
-});
+// ── 4. Envio de e-mail de alerta ──────────────────────────────────────────────
 
-// Sobrescrevemos o método de erro apenas para adicionar o disparo do e-mail
-const EMAIL_INTERVAL = 5 * 60 * 1000; // 5 minutos entre e-mails
-let lastEmailTime = 0;
+const EMAIL_INTERVAL = 5 * 60 * 1000; // mínimo 5 min entre e-mails
+let lastEmailTime    = 0;
+
+const sendAlertEmail = (subject, body) => {
+  // Não tenta enviar se as variáveis não estão configuradas
+  if (!process.env.SMTP_HOST || !process.env.ALERT_EMAIL_TO) return;
+
+  const now = Date.now();
+  if (now - lastEmailTime < EMAIL_INTERVAL) return;
+  lastEmailTime = now;
+
+  const text = typeof body === 'object'
+    ? JSON.stringify(body, null, 2)
+    : String(body);
+
+  mailTransport.sendMail({
+    from:    process.env.ALERT_EMAIL_FROM || process.env.SMTP_USER,
+    to:      process.env.ALERT_EMAIL_TO,
+    subject: `[BG Representações API] ${subject}`,
+    text,
+  }).then(() => {
+    // Confirma no log do Railway que o e-mail saiu
+    console.info(`[logger] E-mail de alerta enviado: "${subject}"`);
+  }).catch((err) => {
+    // Erro de envio aparece nos logs do Railway
+    console.error('[logger] Falha ao enviar e-mail de alerta:', err.message);
+    console.error('[logger] Código do erro SMTP:', err.code);
+    // Reseta o timer para tentar novamente na próxima ocorrência
+    lastEmailTime = 0;
+  });
+};
+
+// ── 5. Sobrescrita dos métodos de log críticos ────────────────────────────────
+// logger.error → e-mail genérico de erro
+// logger.fatal → e-mail com prioridade máxima
+
 const originalError = logger.error.bind(logger);
-logger.error = function (obj, ...args) {
-  // Dispara o e-mail em background
-  if (now - lastEmailTime > EMAIL_INTERVAL) {
-   lastEmailTime = now;
+const originalFatal = logger.fatal.bind(logger);
 
-   mailTransport.sendMail({
-      from: process.env.ALERT_EMAIL_FROM,
-      to: process.env.ALERT_EMAIL_TO,
-      subject: `Erro API`,
-      text: JSON.stringify(obj, null, 2)
-   }).catch(err =>
-      console.error('Falha ao enviar e-mail de alerta:', err.message)
-    );
-}
+logger.error = function (obj, msg, ...args) {
+  const subject = (obj && obj.type) ? obj.type : 'Erro na API';
+  const body    = (obj && typeof obj === 'object')
+    ? { ...obj, msg, timestamp: new Date().toISOString() }
+    : { msg: obj, timestamp: new Date().toISOString() };
 
-  // Executa o log original no console
-  return originalError(obj, ...args);
+  sendAlertEmail(subject, body);
+  return originalError(obj, msg, ...args);
+};
+
+logger.fatal = function (obj, msg, ...args) {
+  const subject = 'FATAL — Servidor em risco';
+  const body    = (obj && typeof obj === 'object')
+    ? { ...obj, msg, timestamp: new Date().toISOString() }
+    : { msg: obj, timestamp: new Date().toISOString() };
+
+  sendAlertEmail(subject, body);
+  return originalFatal(obj, msg, ...args);
 };
 
 module.exports = logger;const swaggerJSDoc = require('swagger-jsdoc');
@@ -650,26 +743,7 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = { authMiddleware, authorize };const AppError = require('../utils/AppError');
-
-const authorizeRoles = (...allowedRoles) => {
-  return (req, res, next) => {
-
-    if (!req.user) {
-      return next(new AppError('Usuário não autenticado.', 401));
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      return next(
-        new AppError('Você não tem permissão para executar esta ação.', 403)
-      );
-    }
-
-    next();
-  };
-};
-
-module.exports = authorizeRoles;const logger = require('../config/logger');
+module.exports = { authMiddleware, authorize };const logger = require('../config/logger');
 
 const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
@@ -762,6 +836,7 @@ if (err.name === 'SequelizeForeignKeyConstraintError') {
 
 module.exports = errorHandler;const rateLimit = require('express-rate-limit');
 const appConfig = require('../config/config');
+const logger = require('../config/logger');
 
 const defaultLimiter = rateLimit({
   windowMs: appConfig.rateLimit.windowMs,
@@ -769,7 +844,19 @@ const defaultLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: false,
-  message: { error: 'Muitas requisições. Tente novamente mais tarde.' },
+  handler: (req, res, next, options) => {
+    logger.error({
+      type: 'RATE_LIMIT_BLOCK',
+      message: 'Excesso de requisições globais',
+      ip: req.ip,
+      path: req.path,
+      method: req.method
+    });
+
+    res.status(options.statusCode).json({ 
+      error: 'Muitas requisições. Tente novamente mais tarde.' 
+    });
+  },
 });
 
 const authLimiter = rateLimit({
@@ -777,7 +864,20 @@ const authLimiter = rateLimit({
   max: appConfig.rateLimit.authMax,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Muitas tentativas de autenticação. Tente novamente mais tarde.' },
+  handler: (req, res, next, options) => {
+    // Este log específico disparará o e-mail de "Aviso de Segurança"
+    logger.error({
+      type: 'SECURITY_AUTH_BLOCK',
+      message: 'Bloqueio por múltiplas tentativas de login. Tente novamente em 15 minutos',
+      ip: req.ip,
+      path: req.path,
+      userAgent: req.get('User-Agent')
+    });
+
+    res.status(options.statusCode).json({ 
+      error: 'Muitas tentativas de autenticação. Tente novamente mais tarde.' 
+    });
+  },
 });
 
 module.exports = { defaultLimiter, authLimiter };
@@ -911,10 +1011,10 @@ const router = Router();
  *             properties:
  *               email:
  *                 type: string
- *                 example: marlonsilveira.dev@gmail.com
+ *                 example: admin@seuemail.com
  *               password:
  *                 type: string
- *                 example: Marlon@1512
+ *                 example: sua_senha_secreta
  *     responses:
  *       200:
  *         description: |
@@ -1068,7 +1168,7 @@ router.use(authMiddleware);
  *       404:
  *         description: Vínculo não encontrado
  */
-router.patch('/:id/status', authorize('admin'), ClientFlagController.updateStatus);
+router.patch('/:id/status', authorize('admin', 'user'), ClientFlagController.updateStatus);
 
 module.exports = router;const { Router } = require('express');
 const ClientController = require('../controllers/ClientController');
@@ -1482,9 +1582,9 @@ router.use('/documents',    documentRoutes);
 module.exports = router;const express = require('express');
 const router = express.Router();
 const OnboardingController = require('../controllers/OnboardingController');
-const { authMiddleware } = require('../middlewares/authMiddleware');
+const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
 const { onboardingUpload } = require('../middlewares/uploadMiddleware');
-const authorizeRoles = require('../middlewares/authorizeRoles');
+
 
 
 /**
@@ -1523,7 +1623,7 @@ const authorizeRoles = require('../middlewares/authorizeRoles');
  *       200:
  *         description: Onboarding iniciado com sucesso
  */
-router.post('/', authMiddleware, authorizeRoles('admin', 'user'), onboardingUpload, OnboardingController.start);
+router.post('/', authMiddleware, authorize('admin', 'user'), onboardingUpload, OnboardingController.start);
 
 module.exports = router;const { Router } = require('express');
 const PlanController = require('../controllers/PlanController');
@@ -2339,7 +2439,7 @@ module.exports = (sequelize) => {
       },
       bank_code: {
         type: DataTypes.STRING(10),
-        allowNull: false,
+        allowNull: true,
       },
       bank_name: {
         type: DataTypes.STRING(100),
@@ -2359,7 +2459,7 @@ module.exports = (sequelize) => {
       },
       account_digit: {
         type: DataTypes.STRING(2),
-        allowNull: false,
+        allowNull: true,
       },
       account_type: {
         type: DataTypes.ENUM('checking', 'savings'),
@@ -3466,24 +3566,24 @@ const getClientById = async (id, requester) => {
 const updateClient = async (id, requester, data, files = null) => {
   const client = await Client.findByPk(id);
   if (!client) throw new AppError('Cliente não encontrado.', 404);
- 
+
   _assertCanWrite(client, requester.id, requester.role);
- 
+
   const { partner_id, bankAccount, ...clientData } = data || {};
   const uploadedPublicIds = [];
   const oldPublicIdsToDelete = [];
- 
+
   if (partner_id && requester.role === 'admin') {
     const partner = await User.findByPk(partner_id);
     if (!partner || partner.role !== 'partner') throw new AppError('Parceiro inválido.', 422);
     clientData.partner_id = partner_id;
   }
- 
+
   const t = await Client.sequelize.transaction();
- 
+
   try {
     await client.update(clientData, { transaction: t });
- 
+
     if (bankAccount) {
       const [account, created] = await ClientBankAccount.findOrCreate({
         where: { client_id: id },
@@ -3492,34 +3592,36 @@ const updateClient = async (id, requester, data, files = null) => {
       });
       if (!created) await account.update(bankAccount, { transaction: t });
     }
- 
+
     if (files) {
       const toProcess = [];
- 
+
       if (files.contrato?.length > 0) {
         toProcess.push({ file: files.contrato[0], type: 'company_document' });
       }
- 
+
       if (files.documentos?.length > 0) {
         const types = ['proof_of_address', 'bank_account_proof', 'card_machine_proof'];
         files.documentos.forEach((file, index) => {
           if (types[index]) toProcess.push({ file, type: types[index] });
         });
       }
- 
+
       for (const item of toProcess) {
         const { file, type } = item;
- 
+
         const upload = await StorageService.uploadToCloudinary(file.buffer, `client_${id}_${type}`);
         uploadedPublicIds.push(upload.public_id);
- 
+
         const existingDoc = await ClientDocument.findOne({
           where: { client_id: id, document_type: type },
           transaction: t,
         });
- 
+
         if (existingDoc) {
-          oldPublicIdsToDelete.push(existingDoc.cloudinary_public_id);
+          if (existingDoc.cloudinary_public_id !== upload.public_id) {
+            oldPublicIdsToDelete.push(existingDoc.cloudinary_public_id);
+          }
           await existingDoc.update({
             cloudinary_public_id: upload.public_id,
             original_name: file.originalname,
@@ -3539,15 +3641,15 @@ const updateClient = async (id, requester, data, files = null) => {
         }
       }
     }
- 
+
     await t.commit();
- 
+
     for (const oldId of oldPublicIdsToDelete) {
       StorageService.deleteFromCloudinary(oldId).catch(e => logger.error(`Erro ao remover imagem antiga: ${e}`));
     }
- 
+
     return getClientById(id, requester);
- 
+
   } catch (error) {
     await t.rollback();
     for (const newId of uploadedPublicIds) {
@@ -3577,8 +3679,8 @@ const recalculateStatus = async (clientId, transaction = null) => {
       'status',
       [ClientFlag.sequelize.fn('COUNT', ClientFlag.sequelize.col('id')), 'total'],
     ],
-    group:       ['status'],
-    raw:         true,
+    group: ['status'],
+    raw: true,
     transaction,
   });
 
@@ -3744,17 +3846,30 @@ const { generateProtocol } = require('../utils/protocol');
 const onboardClient = async (requester, rawData, files) => {
   const uploadedPublicIds = [];
 
-  // 1. Validação Antecipada do Plano
-  const plan = await Plan.findByPk(rawData.plan_id, {
-    include: [{
-      model: Flag,
-      as: 'flags',
-      through: { attributes: [] }
-    }]
-  });
+  // ── 1. Validação antecipada do Plano / Bandeiras ──────────────────────────
+  // Regra: o usuário deve informar OU um plano OU ao menos uma bandeira individual.
+  //   - plan_id preenchido           → modo PLANO   (bandeiras herdadas do plano)
+  //   - flag_ids preenchido sem plan → modo INDIVIDUAL (soma dos preços das bandeiras)
+  //   - nenhum dos dois              → erro 422
 
-  if (!plan) {
-    throw new AppError('O plano selecionado é inválido ou não está mais ativo.', 422);
+  const hasFlagIds = Array.isArray(rawData.flag_ids) && rawData.flag_ids.length > 0;
+
+  let plan = null;
+
+  if (rawData.plan_id) {
+    plan = await Plan.findByPk(rawData.plan_id, {
+      include: [{
+        model: Flag,
+        as: 'flags',
+        through: { attributes: [] }
+      }]
+    });
+
+    if (!plan) {
+      throw new AppError('O plano selecionado é inválido ou não está mais ativo.', 422);
+    }
+  } else if (!hasFlagIds) {
+    throw new AppError('Informe um plano ou ao menos uma bandeira individual.', 422);
   }
 
   try {
@@ -3774,104 +3889,113 @@ const onboardClient = async (requester, rawData, files) => {
         client_id: client.id,
       }, { transaction: t });
 
-      // --- LÓGICA DE NEGÓCIO: PLANO VS INDIVIDUAL ---
+      // ── LÓGICA DE NEGÓCIO: PLANO vs INDIVIDUAL ────────────────────────────
       let flagsParaProcessar = [];
-      let valorTotalVenda = 0;
+      let valorTotalVenda    = 0;
 
-      if (rawData.flag_ids && rawData.flag_ids.length > 0) {
-        // REGRA INDIVIDUAL: Soma dos preços das bandeiras
+      if (hasFlagIds) {
+        // MODO INDIVIDUAL: soma dos preços das bandeiras selecionadas
         const ids = Array.isArray(rawData.flag_ids) ? rawData.flag_ids : [rawData.flag_ids];
-        const selectedFlags = await Flag.findAll({ 
+
+        const selectedFlags = await Flag.findAll({
           where: { id: ids },
-          transaction: t 
+          transaction: t
         });
-        
+
         flagsParaProcessar = selectedFlags.map(f => ({
-          id: f.id,
-          name: f.name,
-          price: parseFloat(f.price || 0),
-          origin: 'individual'
+          id:     f.id,
+          name:   f.name,
+          price:  parseFloat(f.price || 0),
+          origin: 'individual',
         }));
-        
+
         valorTotalVenda = flagsParaProcessar.reduce((acc, f) => acc + f.price, 0);
-      } else {
-        // REGRA PLANO: Preço fechado do plano e bandeiras herdadas
-        valorTotalVenda = parseFloat(plan.price || 0);
+
+      } else if (plan) {
+        // MODO PLANO: preço fechado do plano e bandeiras herdadas
+        valorTotalVenda    = parseFloat(plan.price || 0);
         flagsParaProcessar = plan.flags.map(f => ({
-          id: f.id,
-          name: f.name,
-          price: parseFloat(f.price || 0),
-          origin: 'plan'
+          id:     f.id,
+          name:   f.name,
+          price:  parseFloat(f.price || 0),
+          origin: 'plan',
         }));
       }
+      // Se nenhum dos dois (não deveria chegar aqui — validação antecipada cobre),
+      // flagsParaProcessar fica [] e valorTotalVenda = 0.
 
       // C. Criação da Venda com o Valor Calculado
       const sale = await Sale.create({
-        client_id: client.id,
-        plan_id: plan.id,
+        client_id:   client.id,
+        plan_id:     plan?.id    ?? null,
         total_value: valorTotalVenda,
-        plan_name: plan.name,
-        plan_price: plan.price, // Preço base do plano para registro
-        sold_by: requester.id,
-        status: 'pending'
+        plan_name:   plan?.name  ?? 'Bandeiras Individuais',
+        plan_price:  plan?.price ?? 0,
+        sold_by:     requester.id,
+        status:      'pending'
       }, { transaction: t });
 
-      // D. Gravação das Bandeiras (Evita erro de Not-Null no Price)
+      // D. Gravação das Bandeiras
       if (flagsParaProcessar.length > 0) {
         await SaleFlag.bulkCreate(
           flagsParaProcessar.map(f => ({
             sale_id: sale.id,
             flag_id: f.id,
-            price: f.price, // Agora enviamos o preço para o banco
-            status: 'pending'
-          })), { transaction: t }
+            price:   f.price,
+            status:  'pending',
+          })),
+          { transaction: t }
         );
 
         await ClientFlag.bulkCreate(
           flagsParaProcessar.map(f => ({
             client_id: client.id,
-            flag_id: f.id,
-            status: 'pending',
-            origin: f.origin,
-            price: f.price
-          })), { transaction: t }
+            flag_id:   f.id,
+            status:    'pending',
+            origin:    f.origin,
+            price:     f.price,
+          })),
+          { transaction: t }
         );
       }
 
       // E. Processamento de Documentos
       const documentsToSave = [];
-      
+
       // Upload do Contrato
       if (files.contrato?.length > 0) {
-        const file = files.contrato[0];
+        const file   = files.contrato[0];
         const upload = await StorageService.uploadToCloudinary(file.buffer, `contrato_${client.id}`);
         uploadedPublicIds.push(upload.public_id);
         documentsToSave.push({
-          client_id: client.id,
+          client_id:            client.id,
           cloudinary_public_id: upload.public_id,
-          document_type: 'company_document',
-          original_name: file.originalname,
-          mime_type: file.mimetype,
-          file_size: file.size,
-          uploaded_by: requester.id
+          document_type:        'company_document',
+          original_name:        file.originalname,
+          mime_type:            file.mimetype,
+          file_size:            file.size,
+          uploaded_by:          requester.id,
         });
       }
 
-      // Upload de outros documentos (máximo 3 tipos)
+      // Upload de outros documentos (máximo 3 tipos, ordem: endereço → banco → maquininha)
       if (files.documentos?.length > 0) {
         const types = ['proof_of_address', 'bank_account_proof', 'card_machine_proof'];
         for (let i = 0; i < Math.min(files.documentos.length, types.length); i++) {
-          const file = files.documentos[i];
-          const upload = await StorageService.uploadToCloudinary(file.buffer, `doc_${types[i]}_${client.id}`);
+          const file   = files.documentos[i];
+          const upload = await StorageService.uploadToCloudinary(
+            file.buffer,
+            `doc_${types[i]}_${client.id}`
+          );
           uploadedPublicIds.push(upload.public_id);
           documentsToSave.push({
-            client_id: client.id,
+            client_id:            client.id,
             cloudinary_public_id: upload.public_id,
-            document_type: types[i],
-            original_name: file.originalname,
-            mime_type: file.mimetype,
-            file_size: file.size,
-            uploaded_by: requester.id
+            document_type:        types[i],
+            original_name:        file.originalname,
+            mime_type:            file.mimetype,
+            file_size:            file.size,
+            uploaded_by:          requester.id,
           });
         }
       }
@@ -3879,7 +4003,6 @@ const onboardClient = async (requester, rawData, files) => {
       let savedDocs = [];
       if (documentsToSave.length > 0) {
         const records = await ClientDocument.bulkCreate(documentsToSave, { transaction: t });
-        // Gera URLs assinadas para o retorno
         savedDocs = records.map(doc => {
           const docData = doc.toJSON();
           return {
@@ -3888,27 +4011,28 @@ const onboardClient = async (requester, rawData, files) => {
           };
         });
       }
-            logger.info(
+
+      logger.info(
         { clientId: client.id, protocol: client.protocol, saleId: sale.id, docs: savedDocs.length },
         'Onboarding concluído com sucesso.'
       );
 
-      return { 
+      return {
         client: {
           ...client.toJSON(),
-          bankAccount: bankAccount.toJSON(),
-          bandeiras_contratadas: flagsParaProcessar.map(f => ({ id: f.id, name: f.name }))
-        }, 
+          bankAccount:            bankAccount.toJSON(),
+          bandeiras_contratadas:  flagsParaProcessar.map(f => ({ id: f.id, name: f.name })),
+        },
         sale: {
           ...sale.toJSON(),
-          valor_final: valorTotalVenda
-        }, 
-        documents: savedDocs 
+          valor_final: valorTotalVenda,
+        },
+        documents: savedDocs,
       };
     });
 
   } catch (error) {
-    // Limpeza em caso de falha
+    // Limpeza dos uploads em caso de falha na transação
     for (const id of uploadedPublicIds) {
       await StorageService.deleteFromCloudinary(id).catch(e => logger.error(e));
     }
@@ -4725,12 +4849,12 @@ const uploadToCloudinary = (buffer, customFilename = '') => {
     const uploadOptions = {
       folder:                    'bgrepresentacoes',
       type:                      'authenticated',   // sem acesso público direto
-      resource_type:             'image',
+      resource_type:             'auto',
       public_id:                 customFilename || `file_${Date.now()}`,
       use_filename:              false,
       unique_filename:           true,
       discard_original_filename: true,
-      overwrite:                 false,
+      overwrite:                 true,
     };
 
     const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
@@ -4753,7 +4877,7 @@ const deleteFromCloudinary = async (publicId) => {
   try {
     const result = await cloudinary.uploader.destroy(publicId, {
       type:          'authenticated',
-      resource_type: 'image',
+      resource_type: 'auto',
       invalidate:    true,
     });
     return result;
@@ -5174,8 +5298,19 @@ const getById = catchAsync(async (req, res, next) => {
 const updateClient = catchAsync(async (req, res) => {
   const rawFiles = req.files || [];
  
-  // Organiza o array plano do multer no formato esperado pelo service
-  // Se não vieram arquivos, passa null para o service pular o bloco de upload
+  // --- ADICIONE ESTE BLOCO ---
+  // Se vier no formato do FormData (com campo 'data' stringificado), faz o parse.
+  // Se não, usa o req.body normal.
+  let updateData = req.body;
+  if (req.body.data && typeof req.body.data === 'string') {
+    try {
+      updateData = JSON.parse(req.body.data);
+    } catch (err) {
+      return res.status(400).json({ status: 'error', message: 'JSON malformado no campo data' });
+    }
+  }
+  // ---------------------------
+
   const organizedFiles = rawFiles.length > 0
     ? {
         contrato:   rawFiles.filter(f => f.fieldname.trim() === 'contrato'),
@@ -5186,7 +5321,7 @@ const updateClient = catchAsync(async (req, res) => {
   const client = await ClientService.updateClient(
     req.params.id,
     req.user,
-    req.body,
+    updateData, // <--- Agora usamos o dado tratado
     organizedFiles
   );
  
@@ -5196,6 +5331,31 @@ const updateClient = catchAsync(async (req, res) => {
     data:    client,
   });
 });
+// const updateClient = catchAsync(async (req, res) => {
+//   const rawFiles = req.files || [];
+ 
+//   // Organiza o array plano do multer no formato esperado pelo service
+//   // Se não vieram arquivos, passa null para o service pular o bloco de upload
+//   const organizedFiles = rawFiles.length > 0
+//     ? {
+//         contrato:   rawFiles.filter(f => f.fieldname.trim() === 'contrato'),
+//         documentos: rawFiles.filter(f => f.fieldname.trim() === 'documentos'),
+//       }
+//     : null;
+ 
+//   const client = await ClientService.updateClient(
+//     req.params.id,
+//     req.user,
+//     req.body,
+//     organizedFiles
+//   );
+ 
+//   return res.status(200).json({
+//     status:  'success',
+//     message: 'Cliente atualizado com sucesso.',
+//     data:    client,
+//   });
+// });
 
 
 // GET /api/v1/clients/public/track/:protocol
@@ -5678,31 +5838,28 @@ module.exports = {
   updateProfile 
 };
 ==== DOCKERFILES ====
-# Usa a imagem estável do Node.js
-FROM node:20-alpine
-
-# Instala ferramentas necessárias para compilar dependências se necessário
+# 1. ESTÁGIO BASE (Comum a ambos)
+FROM node:20-alpine AS base
 RUN apk add --no-cache bash
-
-# Define o diretório de trabalho dentro do container
 WORKDIR /app
-
-# Copia os arquivos de dependências
 COPY package*.json ./
-
-# Instala as dependências
-RUN npm install
-
-# Copia o restante dos arquivos do projeto
-COPY . .
-
-# Expõe a porta que a API utiliza
 EXPOSE 3000
 
-# rodar como usuário node (mais seguro)
-USER node
+# 2. ESTÁGIO DE DESENVOLVIMENTO (Usado localmente)
+FROM base AS development
+# Instala TUDO (incluindo nodemon e devDependencies)
+RUN npm install 
+COPY . .
+# O comando local será sobrescrito pelo docker-compose, mas deixamos um padrão
+CMD ["npm", "run", "dev"]
 
-# Comando para rodar a aplicação
+# 3. ESTÁGIO DE PRODUÇÃO (Usado pelo Railway)
+FROM base AS production
+# Instala apenas o essencial para rodar
+RUN npm ci --omit=dev
+COPY . .
+# Rodar como usuário node (segurança)
+USER node
 CMD ["node", "src/server.js"]
 
 services:
@@ -5736,6 +5893,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     container_name: bgrepresentacoes-api
     restart: unless-stopped
     env_file:
@@ -5747,6 +5905,7 @@ services:
         condition: service_healthy
     volumes:
       - .:/app
+      - /app/node_modules
     command: npm run dev
 
 volumes:
