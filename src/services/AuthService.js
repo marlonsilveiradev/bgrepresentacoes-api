@@ -1,5 +1,7 @@
 const { User } = require('../models');
 const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../utils/auth');
+const { RefreshToken } = require('../models');
+const { hashToken } = require('../utils/tokenHash');
 const AppError = require('../utils/AppError');
 const logger = require('../config/logger');
 
@@ -52,8 +54,28 @@ const login = async (email, password) => {
   const tokenPayload = { id: user.id, role: user.role };
 
   // 7. Gera access token + refresh token
-  const token        = generateToken(tokenPayload);
-  const refreshToken = generateRefreshToken(tokenPayload);
+  const token = generateToken(tokenPayload);
+const refreshToken = generateRefreshToken(tokenPayload);
+
+// 🔐 Cria hash
+const hashedToken = hashToken(refreshToken);
+
+// ⏰ Expiração
+const expiresAt = new Date();
+expiresAt.setDate(expiresAt.getDate() + 7);
+
+// ❌ Revoga tokens antigos
+await RefreshToken.update(
+  { revoked: true },
+  { where: { user_id: user.id } }
+);
+
+// ✅ Salva novo token
+await RefreshToken.create({
+  user_id: user.id,
+  token_hash: hashedToken,
+  expires_at: expiresAt,
+});
 
   // 8. Atualiza last_login_at APENAS se não for o primeiro login
   //    No primeiro login, o last_login_at é definido em changePassword()
@@ -151,22 +173,58 @@ const changePassword = async (userId, currentPassword, newPassword) => {
  * @param {string} refreshToken
  * @returns {{ token: string }}
  */
+
 const refreshAccessToken = async (refreshToken) => {
   const decoded = verifyRefreshToken(refreshToken);
+
+  const hashed = hashToken(refreshToken);
+
+  const storedToken = await RefreshToken.findOne({
+    where: {
+      user_id: decoded.id,
+      token_hash: hashed,
+      revoked: false,
+    },
+  });
+
+  if (!storedToken) {
+    throw new AppError('Refresh token inválido.', 401);
+  }
+
+  if (new Date() > storedToken.expires_at) {
+    throw new AppError('Refresh token expirado.', 401);
+  }
 
   const user = await User.findByPk(decoded.id, {
     attributes: ['id', 'role', 'is_active'],
   });
 
   if (!user || !user.is_active) {
-    throw new AppError('Usuário não encontrado ou inativo.', 401);
+    throw new AppError('Usuário inválido.', 401);
   }
 
-  const token = generateToken({ id: user.id, role: user.role });
+  // 🔁 ROTACIONA (invalida o atual)
+  await storedToken.update({ revoked: true });
 
-  logger.info({ userId: user.id }, 'Access token renovado.');
+  const newToken = generateToken({ id: user.id, role: user.role });
+  const newRefreshToken = generateRefreshToken({ id: user.id, role: user.role });
 
-  return { token };
+  const newHashed = hashToken(newRefreshToken);
+
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  await RefreshToken.create({
+    user_id: user.id,
+    token_hash: newHashed,
+    expires_at: expiresAt,
+  });
+
+  return {
+    token: newToken,
+    refreshToken: newRefreshToken,
+  };
 };
 
-module.exports = { login, changePassword, refreshAccessToken };
+
+module.exports = { login, changePassword, refreshAccessToken,  };

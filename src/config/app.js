@@ -8,6 +8,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const pinoHttp = require('pino-http');
 const swaggerUi = require('swagger-ui-express');
 const config = require('./config');
+const hpp = require('hpp');
 const basicAuth = require('express-basic-auth');
 
 const logger = require('./logger');
@@ -34,7 +35,7 @@ if (isSwaggerEnabled) {
     '/api-docs',
     basicAuth({
       users: {
-        admin: process.env.SWAGGER_PASSWORD || 'bg@api123',
+        admin: process.env.SWAGGER_PASSWORD,
       },
       challenge: true,
     }),
@@ -48,6 +49,7 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(xss());
 app.use(mongoSanitize());
+app.use(hpp());
 app.use(cors({
   origin: (incomingOrigin, callback) => {
     // Permite ferramentas sem origin (Postman, curl, health checks)
@@ -71,10 +73,6 @@ app.use(compression());
 app.use(pinoHttp({ logger }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-
-
-
 
 // Rotas da API
 app.use('/api/v1', routes);

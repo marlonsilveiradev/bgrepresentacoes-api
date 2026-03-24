@@ -74,7 +74,7 @@ const authorize = (...roles) => {
 
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ 
-        error: `Acesso negado. Esta rota exige um dos seguintes papéis: ${roles.join(', ')}` 
+        error: `Acesso negado. Entre em contato com o administrador para obter permissão.`, 
       });
     }
 

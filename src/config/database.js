@@ -18,7 +18,7 @@ module.exports = {
     define: {
       timestamps:  true,
       underscored: true,
-      paranoid:    true,
+      paranoid:    false,
     },
   },
 
@@ -36,7 +36,7 @@ module.exports = {
     define: {
       timestamps:  true,
       underscored: true,
-      paranoid:    true,
+      paranoid:    false,
     },
   },
 
@@ -45,13 +45,13 @@ module.exports = {
   dialect: 'postgres',
   logging: false,
   dialectOptions: {
-    ssl: { require: true, rejectUnauthorized: false },
+    ssl: { require: true, rejectUnauthorized: true },
   },
   pool: {
     max: 10, min: 2, acquire: 30000, idle: 10000,
   },
   define: {
-    timestamps: true, underscored: true, paranoid: true,
+    timestamps: true, underscored: true, paranoid: false,
   },
 },
 };

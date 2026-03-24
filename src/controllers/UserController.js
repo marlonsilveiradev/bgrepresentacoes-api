@@ -66,8 +66,8 @@ const getProfile = catchAsync(async (req, res, next) => {
   return res.status(200).json({
     status: 'success',
     data: {
-      ...user.toJSON(), // ✅ CONVERTE O MODELO PARA JSON
-      mustChangePassword, // ✅ AGORA O FRONT RECEBE CORRETAMENTE
+      ...user.toJSON(),
+      mustChangePassword, 
     },
   });
 });

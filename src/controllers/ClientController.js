@@ -36,23 +36,10 @@ const getById = catchAsync(async (req, res, next) => {
   });
 });
 
-// POST /api/v1/clients
-// const create = catchAsync(async (req, res, next) => {
-//   const client = await ClientService.createClient(req.user, req.body);
-  
-//   return res.status(201).json({
-//     status: 'success',
-//     message: `Cliente cadastrado com protocolo ${client.protocol}.`,
-//     data:    client,
-//   });
-// });
-
-
 // PATCH /api/v1/clients/:id
 const updateClient = catchAsync(async (req, res) => {
-  const rawFiles = req.files || [];
- 
-  // --- ADICIONE ESTE BLOCO ---
+  const rawFiles = req.files || []; 
+  
   // Se vier no formato do FormData (com campo 'data' stringificado), faz o parse.
   // Se não, usa o req.body normal.
   let updateData = req.body;
@@ -63,7 +50,6 @@ const updateClient = catchAsync(async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'JSON malformado no campo data' });
     }
   }
-  // ---------------------------
 
   const organizedFiles = rawFiles.length > 0
     ? {
@@ -85,32 +71,6 @@ const updateClient = catchAsync(async (req, res) => {
     data:    client,
   });
 });
-// const updateClient = catchAsync(async (req, res) => {
-//   const rawFiles = req.files || [];
- 
-//   // Organiza o array plano do multer no formato esperado pelo service
-//   // Se não vieram arquivos, passa null para o service pular o bloco de upload
-//   const organizedFiles = rawFiles.length > 0
-//     ? {
-//         contrato:   rawFiles.filter(f => f.fieldname.trim() === 'contrato'),
-//         documentos: rawFiles.filter(f => f.fieldname.trim() === 'documentos'),
-//       }
-//     : null;
- 
-//   const client = await ClientService.updateClient(
-//     req.params.id,
-//     req.user,
-//     req.body,
-//     organizedFiles
-//   );
- 
-//   return res.status(200).json({
-//     status:  'success',
-//     message: 'Cliente atualizado com sucesso.',
-//     data:    client,
-//   });
-// });
-
 
 // GET /api/v1/clients/public/track/:protocol
 const trackByProtocol = catchAsync(async (req, res, next) => {

@@ -8,42 +8,43 @@ const config = dbConfig[env];
 
 const sequelize = config.use_env_variable
   ? new Sequelize(process.env[config.use_env_variable], {
+    dialect: config.dialect,
+    logging: config.logging,
+    pool: config.pool,
+    define: config.define,
+    dialectOptions: config.dialectOptions || {},
+  })
+  : new Sequelize(
+    config.database,
+    config.username,
+    config.password,
+    {
+      host: config.host,
+      port: config.port,
       dialect: config.dialect,
       logging: config.logging,
       pool: config.pool,
       define: config.define,
       dialectOptions: config.dialectOptions || {},
-    })
-  : new Sequelize(
-      config.database,
-      config.username,
-      config.password,
-      {
-        host: config.host,
-        port: config.port,
-        dialect: config.dialect,
-        logging: config.logging,
-        pool: config.pool,
-        define: config.define,
-        dialectOptions: config.dialectOptions || {},
-      }
-    );
-
+    }
+  );
 // Import models
-const User               = require('./User')(sequelize);
-const Client             = require('./Client')(sequelize);
-const Flag               = require('./Flag')(sequelize);
-const Plan               = require('./Plan')(sequelize);
-const PlanFlag           = require('./PlanFlag')(sequelize);
-const ClientFlag         = require('./ClientFlag')(sequelize);
-const ClientDocument     = require('./ClientDocument')(sequelize);
-const ClientBankAccount  = require('./ClientBankAccount')(sequelize);
-const Sale               = require('./Sale')(sequelize);
-const SaleFlag           = require('./SaleFlag')(sequelize);
+const RefreshToken = require('./RefreshToken')(sequelize);
+const User = require('./User')(sequelize);
+const Client = require('./Client')(sequelize);
+const Flag = require('./Flag')(sequelize);
+const Plan = require('./Plan')(sequelize);
+const PlanFlag = require('./PlanFlag')(sequelize);
+const ClientFlag = require('./ClientFlag')(sequelize);
+const ClientDocument = require('./ClientDocument')(sequelize);
+const ClientBankAccount = require('./ClientBankAccount')(sequelize);
+const Sale = require('./Sale')(sequelize);
+const SaleFlag = require('./SaleFlag')(sequelize);
 
 const db = {
   sequelize,
   Sequelize,
+  RefreshToken,
   User,
   Client,
   Flag,

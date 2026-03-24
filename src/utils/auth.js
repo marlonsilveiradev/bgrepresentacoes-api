@@ -28,9 +28,21 @@ const verifyToken = (token) => {
   }
 };
 
+const verifyRefreshToken = (token) => {
+  try {
+    return jwt.verify(token, config.jwt.refreshSecret);
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      throw new AppError('Refresh token expirado.', 401);
+    }
+    throw new AppError('Refresh token inválido.', 401);
+  }
+};
+
 // Não esqueça de adicionar ao module.exports!
 module.exports = {
   generateToken,
   generateRefreshToken,
   verifyToken,
+  verifyRefreshToken,
 };

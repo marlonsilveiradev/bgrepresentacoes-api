@@ -1,5 +1,7 @@
 const AuthService = require('../services/AuthService');
 const catchAsync = require('../utils/catchAsync');
+const { RefreshToken } = require('../models');
+const { hashToken } = require('../utils/tokenHash');
 
 /**
  * Controller de Autenticação.
@@ -54,11 +56,21 @@ const refresh = catchAsync(async (req, res, next) => {
 });
 
 // ─── POST /api/v1/auth/logout ────────────────────────────────────────────────
-const logout = (req, res) => {
-  // Como não é async e não tem lógica complexa, não precisa de catchAsync
-  return res.status(200).json({ 
+const logout = async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (refreshToken) {
+    const hashed = hashToken(refreshToken);
+
+    await RefreshToken.update(
+      { revoked: true },
+      { where: { token_hash: hashed } }
+    );
+  }
+
+  return res.status(200).json({
     status: 'success',
-    message: 'Logout realizado com sucesso.' 
+    message: 'Logout realizado com sucesso.',
   });
 };
 
