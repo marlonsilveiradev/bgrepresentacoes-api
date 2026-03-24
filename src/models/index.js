@@ -67,7 +67,7 @@ Object.values(db).forEach((model) => {
 // Test connection
 sequelize
   .authenticate()
-  .then(() => logger.info('✅ Conexão com banco de dados estabelecida.'))
-  .catch((err) => logger.error({ err }, '❌ Erro ao conectar ao banco de dados.'));
+  .then(() => logger.info('Conexão com banco de dados estabelecida.'))
+  .catch((err) => logger.error({ err }, 'Erro ao conectar ao banco de dados.'));
 
 module.exports = db;
