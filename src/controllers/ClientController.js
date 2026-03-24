@@ -28,27 +28,62 @@ const list = catchAsync(async (req, res, next) => {
 
 // GET /api/v1/clients/:id
 const getById = catchAsync(async (req, res, next) => {
+  // 1. Busca o cliente no Service
   const client = await ClientService.getClientById(req.params.id, req.user);
-  if (req.user.role === 'partner') {
-    // Transformamos em objeto simples para permitir a deleção de chaves
-    const filteredData = client.toJSON ? client.toJSON() : { ...client };
-
-    // Remova tudo o que o parceiro não deve ver no Network tab
-    delete filteredData.bankAccounts;
-    delete filteredData.documents;
-    delete filteredData.trade_name;
-    delete filteredData.email;
-    delete filteredData.state_registration;
-    delete filteredData.created_by;
-
-    client = filteredData;
-  }
   
+  // 2. VERIFICAÇÃO CRÍTICA: Se não houver cliente, retorna 404 imediatamente
+  if (!client) {
+    return res.status(404).json({ 
+      status: 'error', 
+      message: 'Cliente não encontrado ou você não tem permissão para visualizá-lo.' 
+    });
+  }
+
+  // 3. Converte para objeto simples de forma segura
+  // O método .get({ plain: true }) é o mais estável do Sequelize para isso
+  let responseData = client.get ? client.get({ plain: true }) : JSON.parse(JSON.stringify(client));
+
+  // 4. Aplica a filtragem se for Parceiro
+  if (req.user.role === 'partner') {
+    const sensitiveFields = [
+      'bankAccounts', 
+      'documents', 
+      'state_registration', 
+      'creator', 
+      'created_by'
+    ];
+
+    sensitiveFields.forEach(field => delete responseData[field]);
+  }
+
+  // 5. Retorno com sucesso
   return res.status(200).json({ 
     status: 'success',
-    data: client 
+    data: responseData 
   });
 });
+// const getById = catchAsync(async (req, res, next) => {
+//   const client = await ClientService.getClientById(req.params.id, req.user);
+//   if (req.user.role === 'partner') {
+//     // Transformamos em objeto simples para permitir a deleção de chaves
+//     const filteredData = client.toJSON ? client.toJSON() : { ...client };
+
+//     // Remova tudo o que o parceiro não deve ver no Network tab
+//     delete filteredData.bankAccounts;
+//     delete filteredData.documents;
+//     delete filteredData.trade_name;
+//     delete filteredData.email;
+//     delete filteredData.state_registration;
+//     delete filteredData.created_by;
+
+//     client = filteredData;
+//   }
+  
+//   return res.status(200).json({ 
+//     status: 'success',
+//     data: client 
+//   });
+// });
 
 // PATCH /api/v1/clients/:id
 const updateClient = catchAsync(async (req, res) => {
