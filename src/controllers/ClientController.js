@@ -29,6 +29,20 @@ const list = catchAsync(async (req, res, next) => {
 // GET /api/v1/clients/:id
 const getById = catchAsync(async (req, res, next) => {
   const client = await ClientService.getClientById(req.params.id, req.user);
+  if (req.user.role === 'partner') {
+    // Transformamos em objeto simples para permitir a deleção de chaves
+    const filteredData = client.toJSON ? client.toJSON() : { ...client };
+
+    // Remova tudo o que o parceiro não deve ver no Network tab
+    delete filteredData.bankAccounts;
+    delete filteredData.documents;
+    delete filteredData.trade_name;
+    delete filteredData.email;
+    delete filteredData.state_registration;
+    delete filteredData.created_by;
+
+    client = filteredData;
+  }
   
   return res.status(200).json({ 
     status: 'success',
