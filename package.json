@@ -4,7 +4,7 @@
   "description": "Sistema de Gerenciamento de Clientes para Cartões de Vale Alimentação",
   "main": "src/server.js",
   "scripts": {
-    "start": "npx sequelize-cli db:migrate && node src/server.js",
+    "start": "npx sequelize-cli db:migrate --migrations-path=src/database/migrations && node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "NODE_ENV=test jest --runInBand --forceExit",
     "test:unit": "jest tests/unit --runInBand",
