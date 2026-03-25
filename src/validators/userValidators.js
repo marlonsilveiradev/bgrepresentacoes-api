@@ -48,11 +48,22 @@ const updateUserSchema = yup.object({
   is_active: yup
     .boolean()
     .optional(),
+
+  password: yup
+    .string()
+    .min(8, 'A senha deve ter pelo menos 8 caracteres.')
+    .matches(STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE)
+    .transform((value) => (value === '' ? undefined : value)) // Transforma string vazia em undefined
+    .optional(),
 }).test(
   'at-least-one-field',
   'Você deve fornecer pelo menos um campo para atualizar.',
-  (value) => Object.keys(value).length > 0
-);;
+  (value) => {
+    // Removemos campos undefined antes de contar para o teste de "pelo menos um campo"
+    const fields = Object.values(value).filter(v => v !== undefined);
+    return fields.length > 0;
+  }
+);
 
 // ─── Atualizar perfil próprio (user / partner) ────────────────────────────────
 // Apenas 'name' é permitido. E-mail, role e is_active são bloqueados aqui
@@ -76,11 +87,11 @@ const userIdParamSchema = yup.object({
 
 // ─── Query params listagem ────────────────────────────────────────────────────
 const listUsersQuerySchema = yup.object({
-  page:      yup.number().integer().min(1).default(1).optional(),
-  limit:     yup.number().integer().min(1).max(100).default(20).optional(),
-  role:      yup.string().oneOf(['admin', 'user', 'partner']).optional(),
+  page: yup.number().integer().min(1).default(1).optional(),
+  limit: yup.number().integer().min(1).max(100).default(20).optional(),
+  role: yup.string().oneOf(['admin', 'user', 'partner']).optional(),
   is_active: yup.boolean().optional(),
-  search:    yup.string().trim().optional(),
+  search: yup.string().trim().optional(),
 });
 
 module.exports = {

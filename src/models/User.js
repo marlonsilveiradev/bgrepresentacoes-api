@@ -28,13 +28,14 @@ module.exports = (sequelize) => {
         validate: {
           // Validação aplicada ANTES do hash (apenas no valor em plain text)
           isStrongPassword(value) {
-            // Se já parece um hash bcrypt ($2a$...), pula a validação
-            if (value && value.startsWith('$2')) return;
+            // 1. Se não houver valor (não está sendo alterado), permite passar
+            if (!value) return;
 
-            if (!value || value.length < 8) {
-              throw new Error(STRONG_PASSWORD_MESSAGE);
-            }
-            if (!STRONG_PASSWORD_REGEX.test(value)) {
+            // 2. Se já for um hash, permite passar
+            if (value.startsWith('$2')) return;
+
+            // 3. Se houver valor e não for hash, valida a força
+            if (value.length < 8 || !STRONG_PASSWORD_REGEX.test(value)) {
               throw new Error(STRONG_PASSWORD_MESSAGE);
             }
           },

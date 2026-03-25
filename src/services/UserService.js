@@ -20,9 +20,9 @@ const logger = require('../config/logger');
  * Ex: Tmp-A7k2m-2026
  */
 const _generateTempPassword = () => {
-  const chars   = 'abcdefghijklmnopqrstuvwxyz';
-  const nums    = '0123456789';
-  const upper   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const chars = 'abcdefghijklmnopqrstuvwxyz';
+  const nums = '0123456789';
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const specials = '!@#$%';
 
   const randomStr = (src, len) =>
@@ -41,20 +41,20 @@ const _generateTempPassword = () => {
 const listUsers = async ({ page = 1, limit = 20, role, is_active, search } = {}) => {
   console.log('is_active recebido:', is_active, 'convertido para:', is_active === 'true');
   const offset = (page - 1) * limit;
-  const where  = {};
+  const where = {};
 
-  if (role !== undefined)      where.role      = role;
+  if (role !== undefined) where.role = role;
   if (is_active !== undefined) {
-  if (typeof is_active === 'string') {
-    where.is_active = is_active === '1' || is_active === 'true';
-  } else {
-    where.is_active = !!is_active;
+    if (typeof is_active === 'string') {
+      where.is_active = is_active === '1' || is_active === 'true';
+    } else {
+      where.is_active = !!is_active;
+    }
   }
-}
 
   if (search) {
     where[Op.or] = [
-      { name:  { [Op.iLike]: `%${search}%` } },
+      { name: { [Op.iLike]: `%${search}%` } },
       { email: { [Op.iLike]: `%${search}%` } },
     ];
   }
@@ -62,7 +62,7 @@ const listUsers = async ({ page = 1, limit = 20, role, is_active, search } = {})
   const { rows, count } = await User.findAndCountAll({
     where,
     attributes: ['id', 'name', 'email', 'role', 'is_active', 'last_login_at', 'created_at'],
-    order:  [['created_at', 'DESC']],
+    order: [['created_at', 'DESC']],
     limit,
     offset,
   });
@@ -99,18 +99,18 @@ const createUser = async ({ name, email, role }) => {
   const temporaryPassword = _generateTempPassword();
 
   const user = await User.create({
-    name:          name.trim(),
-    email:         email.toLowerCase().trim(),
-    password:      temporaryPassword,  // hash feito pelo hook beforeCreate
+    name: name.trim(),
+    email: email.toLowerCase().trim(),
+    password: temporaryPassword,  // hash feito pelo hook beforeCreate
     role,
-    is_active:     true,
+    is_active: true,
     last_login_at: null,               // null = primeiro login → must change password
   });
 
   logger.info({ userId: user.id, role: user.role }, 'Usuário criado por admin com senha temporária.');
 
   return {
-    user:              user.toJSON(),
+    user: user.toJSON(),
     temporaryPassword,  // retornado uma única vez para o admin repassar ao usuário
   };
 };
@@ -141,6 +141,10 @@ const updateUser = async (targetId, requesterId, data) => {
     });
     if (emailInUse) throw new AppError('E-mail já está em uso.', 409);
     data.email = data.email.toLowerCase().trim();
+  }
+
+  if (data.password === '' || data.password === null || data.password === undefined) {
+    delete data.password;
   }
 
   await user.update(data);
@@ -175,7 +179,7 @@ const deactivateUser = async (targetId, requesterId) => {
   if (targetId === requesterId) throw new AppError('Você não pode desativar a própria conta.', 403);
 
   const user = await User.findByPk(targetId);
-  if (!user)          throw new AppError('Usuário não encontrado.', 404);
+  if (!user) throw new AppError('Usuário não encontrado.', 404);
   if (!user.is_active) throw new AppError('Usuário já está desativado.', 409);
 
   await user.update({ is_active: false });
@@ -188,7 +192,7 @@ const reactivateUser = async (targetId, requesterId) => {
   if (targetId === requesterId) throw new AppError('Operação inválida sobre a própria conta.', 403);
 
   const user = await User.findByPk(targetId);
-  if (!user)         throw new AppError('Usuário não encontrado.', 404);
+  if (!user) throw new AppError('Usuário não encontrado.', 404);
   if (user.is_active) throw new AppError('Usuário já está ativo.', 409);
 
   await user.update({ is_active: true });
