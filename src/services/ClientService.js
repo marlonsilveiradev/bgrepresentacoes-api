@@ -111,7 +111,7 @@ const updateClient = async (id, requester, data, files = null) => {
   const uploadedPublicIds = [];
   const oldPublicIdsToDelete = [];
 
-  if (partner_id && requester.role === 'admin') {
+  if (partner_id && (requester.role === 'admin' || (requester.role === 'user' && client.created_by === requester.id))) {
     const partner = await User.findByPk(partner_id);
     if (!partner || partner.role !== 'partner') throw new AppError('Parceiro inválido.', 422);
     clientData.partner_id = partner_id;

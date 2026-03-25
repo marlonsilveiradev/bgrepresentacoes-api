@@ -43,7 +43,7 @@ const listUsers = async ({ page = 1, limit = 20, role, is_active, search } = {})
   const where  = {};
 
   if (role !== undefined)      where.role      = role;
-  if (is_active !== undefined) where.is_active = is_active;
+  if (is_active !== undefined) where.is_active = is_active === 'true';
 
   if (search) {
     where[Op.or] = [
