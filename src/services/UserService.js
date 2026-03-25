@@ -39,11 +39,12 @@ const _generateTempPassword = () => {
 
 // ─── Listar usuários (admin) ──────────────────────────────────────────────────
 const listUsers = async ({ page = 1, limit = 20, role, is_active, search } = {}) => {
+  console.log('is_active recebido:', is_active, 'convertido para:', is_active === 'true');
   const offset = (page - 1) * limit;
   const where  = {};
 
   if (role !== undefined)      where.role      = role;
-  if (is_active !== undefined) where.is_active = is_active === 'true';
+  if (is_active !== undefined) where.is_active = is_active;
 
   if (search) {
     where[Op.or] = [
