@@ -39,7 +39,7 @@ const create = catchAsync(async (req, res, next) => {
 });
 
 const update = catchAsync(async (req, res, next) => {
-  const user = await UserService.updateUser(req.params.id, req.body);
+  const user = await UserService.updateUser(req.params.id, req.user.id, req.body);
   return res.status(200).json({ 
     status: 'success',
     message: 'Usuário atualizado com sucesso.', 
