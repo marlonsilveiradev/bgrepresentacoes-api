@@ -8,7 +8,7 @@ const list = catchAsync(async (req, res, next) => {
     page:      page      ? parseInt(page, 10)      : 1,
     limit:     limit     ? parseInt(limit, 10)     : 20,
     role,
-    is_active: is_active !== undefined ? is_active === 'true' : undefined,
+    is_active: is_active !== undefined ? (is_active === '1' || is_active === 1) : undefined,
     search,
   });
 
