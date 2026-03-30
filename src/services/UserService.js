@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { User } = require('../models');
 const AppError = require('../utils/AppError');
 const logger = require('../config/logger');
+const crypto = require('crypto');
 
 /**
  * Regras de negócio para gestão de usuários.
@@ -25,8 +26,13 @@ const _generateTempPassword = () => {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const specials = '!@#$%';
 
-  const randomStr = (src, len) =>
-    Array.from({ length: len }, () => src[Math.floor(Math.random() * src.length)]).join('');
+  const randomStr = (src, len) => {
+    return Array.from({ length: len }, () => {
+      // Gera um índice aleatório criptograficamente seguro
+      const randomIndex = crypto.randomInt(0, src.length);
+      return src[randomIndex];
+    }).join('');
+  };
 
   // Garante pelo menos 1 de cada categoria exigida pela política
   const part1 = randomStr(upper, 1);
