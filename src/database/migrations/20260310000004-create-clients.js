@@ -23,6 +23,10 @@ module.exports = {
                 type: Sequelize.STRING(255),
                 allowNull: true,
             },
+            responsible_name: {
+                type: Sequelize.STRING(255),
+                allowNull: false, 
+            },
             cnpj: {
                 type: Sequelize.STRING(18),
                 allowNull: false,

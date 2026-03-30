@@ -6,13 +6,13 @@ const { v4: uuidv4 } = require('uuid');
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface) {
-    const password = await bcrypt.hash('Admin@123456', 12);
+    const password = await bcrypt.hash('@BgAPI@2026@', 12);
 
     await queryInterface.bulkInsert('users', [
       {
         id: uuidv4(),
         name: 'Administrador',
-        email: 'admin@valealimentacao.com.br',
+        email: 'admin@bgrepresentacoes.com.br',
         password,
         role: 'admin',
         is_active: true,

@@ -24,6 +24,10 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(200),
         allowNull: true,
       },
+      responsible_name: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+      },
       cnpj: {
         type: DataTypes.STRING(18),
         allowNull: false,
@@ -34,7 +38,7 @@ module.exports = (sequelize) => {
         allowNull: true,
         field: 'state_registration',
         unique: true,
-      },      
+      },
       phone: {
         type: DataTypes.STRING(20),
         allowNull: true,
