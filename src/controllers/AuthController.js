@@ -56,7 +56,7 @@ const refresh = catchAsync(async (req, res, next) => {
 });
 
 // ─── POST /api/v1/auth/logout ────────────────────────────────────────────────
-const logout = async (req, res) => {
+const logout = catchAsync(async (req, res, next) => {
   const { refreshToken } = req.body;
 
   if (refreshToken) {
@@ -72,6 +72,6 @@ const logout = async (req, res) => {
     status: 'success',
     message: 'Logout realizado com sucesso.',
   });
-};
+});
 
 module.exports = { login, changePassword, refresh, logout };

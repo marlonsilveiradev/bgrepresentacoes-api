@@ -104,7 +104,7 @@ const originalError = logger.error.bind(logger);
 const originalFatal = logger.fatal.bind(logger);
 
 logger.error = function (obj, msg, ...args) {
-  const subject = (obj && obj.type) ? obj.type : 'Erro na API';
+  const subject = obj?.type ?? 'Erro na API';
   const body    = (obj && typeof obj === 'object')
     ? { ...obj, msg, timestamp: new Date().toISOString() }
     : { msg: obj, timestamp: new Date().toISOString() };

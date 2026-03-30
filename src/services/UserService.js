@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const { User } = require('../models');
 const AppError = require('../utils/AppError');
 const logger = require('../config/logger');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 /**
  * Regras de negócio para gestão de usuários.
