@@ -39,7 +39,6 @@ const _generateTempPassword = () => {
 
 // ─── Listar usuários (admin) ──────────────────────────────────────────────────
 const listUsers = async ({ page = 1, limit = 20, role, is_active, search } = {}) => {
-  console.log('is_active recebido:', is_active, 'convertido para:', is_active === 'true');
   const offset = (page - 1) * limit;
   const where = {};
 
