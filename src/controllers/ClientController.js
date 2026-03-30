@@ -14,9 +14,34 @@ const list = catchAsync(async (req, res, next) => {
     search,
   });
 
+  // --- Filtragem de segurança para a lista de clientes ---
+  let rows = result.rows.map(client => {
+  // 1. Força a virar um objeto JS puro e simples
+  const data = client.get({ plain: true });
+
+  if (req.user.role === 'partner') {
+    
+    return {
+      id: data.id,
+      protocol: data.protocol,
+      corporate_name: data.corporate_name,
+      trade_name: data.trade_name,
+      responsible_name: data.responsible_name,
+      phone: data.phone,
+      address_city: data.address_city,
+      address_state: data.address_state,
+      overall_status: data.overall_status,
+      benefit_type: data.benefit_type,
+      createdAt: data.createdAt,
+    };
+  }
+
+  return data;
+});
+
   return res.status(200).json({
     status: 'success',
-    data: result.rows,
+    data: rows,
     pagination: {
       total:       result.count,
       totalPages:  result.totalPages,
@@ -41,21 +66,52 @@ const getById = catchAsync(async (req, res, next) => {
 
   // 3. Converte para objeto simples de forma segura
   // O método .get({ plain: true }) é o mais estável do Sequelize para isso
-  let responseData = client.get ? client.get({ plain: true }) : structuredClone(client);
-
-  // 4. Aplica a filtragem se for Parceiro
+  const data = client.get ? client.get({ plain: true }) : client;  
+  
+  // 4. Aplica a filtragem se for Parceiro 
+  let responseData;
   if (req.user.role === 'partner') {
-    const sensitiveFields = [
-      'bankAccounts', 
-      'documents', 
-      'state_registration', 
-      'creator', 
-      'created_by'
-    ];
+    // --- Extrair o nome do plano da primeira venda encontrada (se existir) ---
+  const planName = data.sales && data.sales.length > 0 
+      ? data.sales[0].plan_name 
+      : 'Nenhum plano encontrado';
+    // RECONSTRUÇÃO TOTAL: Apenas estes campos sairão no JSON do Parceiro
+    responseData = {
+      id:                 data.id,
+      protocol:           data.protocol,
+      corporate_name:     data.corporate_name,
+      trade_name:         data.trade_name,
+      responsible_name:   data.responsible_name,
+      cnpj:               data.cnpj,
+      phone:              data.phone,
+      address_street:     data.address_street,
+      address_number:     data.address_number,
+      address_complement: data.address_complement,
+      address_neighborhood: data.address_neighborhood,
+      address_city:       data.address_city,
+      address_state:      data.address_state,
+      address_zip:        data.address_zip,
+      benefit_type:       data.benefit_type,
+      plan_name:          planName,
+      overall_status:     data.overall_status,
+      notes:              data.notes,
+      createdAt:          data.createdAt,
+      updatedAt:          data.updatedAt,
 
-    sensitiveFields.forEach(field => delete responseData[field]);
+      clientFlags: data.clientFlags ? data.clientFlags.map(cf => ({
+        id: cf.id,
+        status: cf.status,
+        origin: cf.origin,
+        flag: {
+          name: cf.flag?.name || 'Bandeira'
+        }
+      })) : []      
+    };
+  } else {
+    // Se for Admin ou User, envia o objeto completo (ou aplique outra trava se desejar)
+    responseData = data;
   }
-
+  console.log('Cliente encontrado:', responseData); // Log para verificar o que será retornado
   // 5. Retorno com sucesso
   return res.status(200).json({ 
     status: 'success',

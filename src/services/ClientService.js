@@ -35,26 +35,56 @@ const _assertCanWrite = (client, requesterId, requesterRole) => {
 /**
  * Listagem com filtros e paginação
  */
+
 const listClients = async (requester, { page = 1, limit = 20, overall_status, benefit_type, partner_id, search } = {}) => {
   const offset = (page - 1) * limit;
-  const extraFilters = {};
+  
+  // 1. Definição do Escopo de Segurança (Baseado no Role)
+  const securityConditions = {};
 
-  if (overall_status) extraFilters.overall_status = overall_status;
-  if (benefit_type) extraFilters.benefit_type = benefit_type;
-  if (requester.role === 'admin' && partner_id) extraFilters.partner_id = partner_id;
-
-  if (search) {
-    extraFilters[Op.or] = [
-      { corporate_name: { [Op.iLike]: `%${search}%` } },
-      { trade_name: { [Op.iLike]: `%${search}%` } },
-      { cnpj: { [Op.iLike]: `%${search}%` } },
-      { protocol: { [Op.iLike]: `%${search}%` } },
-    ];
+  if (requester.role === 'user') {
+    securityConditions.created_by = requester.id;
+  } else if (requester.role === 'partner') {
+    securityConditions.partner_id = requester.id;
+  } else if (requester.role === 'admin' && partner_id) {
+    // Admin pode filtrar por um parceiro específico se desejar
+    securityConditions.partner_id = partner_id;
   }
 
-  const where = { ...extraFilters };
-  if (requester.role === 'user') where.created_by = requester.id;
-  if (requester.role === 'partner') where.partner_id = requester.id;
+  // 2. Filtros de Status e Tipo
+  const filterConditions = {};
+  if (overall_status) filterConditions.overall_status = overall_status;
+  if (benefit_type) filterConditions.benefit_type = benefit_type;
+
+    // 3. Combinar todas as condições
+  const whereConditions = [];
+
+  // Adiciona condições de segurança se não estiver vazias
+  if (Object.keys(securityConditions).length > 0) {
+    whereConditions.push(securityConditions);
+  }
+
+  // Adiciona condições de filtro
+  if (Object.keys(filterConditions).length > 0) {
+    whereConditions.push(filterConditions);
+  }
+
+  // 3. Filtro de Busca (Search)
+    if (search && search.trim() !== '') {
+    whereConditions.push({
+      [Op.or]: [
+        { corporate_name: { [Op.iLike]: `%${search}%` } },
+        { trade_name: { [Op.iLike]: `%${search}%` } },
+        { cnpj: { [Op.iLike]: `%${search}%` } },
+        { protocol: { [Op.iLike]: `%${search}%` } },
+      ]
+    });
+  }
+
+    // Define o where final
+  const where = whereConditions.length > 0 
+    ? { [Op.and]: whereConditions }
+    : {};
 
   const { rows, count } = await Client.findAndCountAll({
     where,
@@ -65,7 +95,7 @@ const listClients = async (requester, { page = 1, limit = 20, overall_status, be
     order: [['created_at', 'DESC']],
     limit,
     offset,
-    distinct: true,
+    distinct: true, // Importante para contagem correta com includes
   });
 
   return {
