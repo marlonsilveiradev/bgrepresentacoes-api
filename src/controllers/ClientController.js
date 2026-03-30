@@ -41,7 +41,7 @@ const getById = catchAsync(async (req, res, next) => {
 
   // 3. Converte para objeto simples de forma segura
   // O método .get({ plain: true }) é o mais estável do Sequelize para isso
-  let responseData = client.get ? client.get({ plain: true }) : JSON.parse(JSON.stringify(client));
+  let responseData = client.get ? client.get({ plain: true }) : structuredClone(client);
 
   // 4. Aplica a filtragem se for Parceiro
   if (req.user.role === 'partner') {
@@ -74,6 +74,7 @@ const updateClient = catchAsync(async (req, res) => {
     try {
       updateData = JSON.parse(req.body.data);
     } catch (err) {
+      console.error('Erro ao processar FormData JSON:', err.message);
       return res.status(400).json({ status: 'error', message: 'JSON malformado no campo data' });
     }
   }
