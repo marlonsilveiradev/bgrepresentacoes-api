@@ -8,7 +8,7 @@ const list = catchAsync(async (req, res, next) => {
   const result = await FlagService.listFlags({
     page:      page  ? Number.parseInt(page, 10)  : 1,
     limit:     limit ? Number.parseInt(limit, 10) : 20,
-    is_active: is_active !== undefined ? is_active === 'true' : undefined,
+    is_active: is_active === undefined ? undefined : is_active === 'true',
     search,
   });
 

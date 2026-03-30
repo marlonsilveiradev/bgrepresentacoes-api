@@ -11,9 +11,9 @@ const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     // 1. Verifica se o header Authorization existe e começa com 'Bearer '
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Token de autenticação não fornecido.' });
-    }
+    if (!authHeader?.startsWith('Bearer ')) {
+  return res.status(401).json({ error: 'Token de autenticação não fornecido.' });
+}
 
     const token = authHeader.split(' ')[1];
 

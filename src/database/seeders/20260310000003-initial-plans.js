@@ -7,7 +7,7 @@ module.exports = {
         id: Sequelize.literal('gen_random_uuid()'),
         name: 'Combo 5 Bandeiras',
         description: 'Plano com 5 bandeiras',
-        price: 199.90,
+        price: 199.9,
         is_active: true,
         created_at: new Date(),
         updated_at: new Date()
@@ -16,7 +16,7 @@ module.exports = {
         id: Sequelize.literal('gen_random_uuid()'),
         name: 'Combo 7 Bandeiras',
         description: 'Plano com 7 bandeiras',
-        price: 349.90,
+        price: 349.9,
         is_active: true,
         created_at: new Date(),
         updated_at: new Date()
@@ -25,7 +25,7 @@ module.exports = {
         id: Sequelize.literal('gen_random_uuid()'),
         name: 'Combo 7 Bandeiras',
         description: 'Plano completo',
-        price: 399.90,
+        price: 399.9,
         is_active: true,
         created_at: new Date(),
         updated_at: new Date()
