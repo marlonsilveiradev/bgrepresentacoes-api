@@ -32,6 +32,11 @@ module.exports = {
                 allowNull: false,
                 unique: true,
             },
+            state_registration: {
+                type: Sequelize.STRING(15),
+                allowNull: true,
+                unique: true,
+            },
             phone: {
                 type: Sequelize.STRING(20),
                 allowNull: true,
@@ -39,6 +44,7 @@ module.exports = {
             email: {
                 type: Sequelize.STRING(255),
                 allowNull: true,
+                unique: true,
             },
             address_street: {
                 type: Sequelize.STRING(255),

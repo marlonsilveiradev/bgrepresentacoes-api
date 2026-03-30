@@ -12,8 +12,8 @@ const authMiddleware = async (req, res, next) => {
 
     // 1. Verifica se o header Authorization existe e começa com 'Bearer '
     if (!authHeader?.startsWith('Bearer ')) {
-  return res.status(401).json({ error: 'Token de autenticação não fornecido.' });
-}
+      return res.status(401).json({ error: 'Token de autenticação não fornecido.' });
+    }
 
     const token = authHeader.split(' ')[1];
 
@@ -43,9 +43,9 @@ const authMiddleware = async (req, res, next) => {
   } catch (err) {
     // 1. Tratamento específico para erros de Token (Expirado ou Inválido)
     if (err.message.includes('Token expirado') || err.message.includes('Token inválido')) {
-      return res.status(401).json({ 
-        error: 'Não autorizado', 
-        message: err.message 
+      return res.status(401).json({
+        error: 'Não autorizado',
+        message: err.message
       });
     }
 
@@ -53,7 +53,7 @@ const authMiddleware = async (req, res, next) => {
     if (err.statusCode) {
       return res.status(err.statusCode).json({ error: err.message });
     }
-    
+
     // 3. Log de erro inesperado para o seu controle
     logger.error(err, 'Erro interno no middleware de autenticação');
 
@@ -73,8 +73,8 @@ const authorize = (...roles) => {
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        error: `Acesso negado. Entre em contato com o administrador para obter permissão.`, 
+      return res.status(403).json({
+        error: `Acesso negado. Entre em contato com o administrador para obter permissão.`,
       });
     }
 
