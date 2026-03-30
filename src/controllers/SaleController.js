@@ -9,8 +9,8 @@ const list = catchAsync(async (req, res, next) => {
   const { page, limit, status, client_id, sold_by, plan_id } = req.query;
 
   const result = await SaleService.listSales(req.user, {
-    page:      page  ? parseInt(page, 10)  : 1,
-    limit:     limit ? parseInt(limit, 10) : 20,
+    page:      page  ? Number.parseInt(page, 10)  : 1,
+    limit:     limit ? Number.parseInt(limit, 10) : 20,
     status,
     client_id,
     sold_by,
@@ -24,7 +24,7 @@ const list = catchAsync(async (req, res, next) => {
       total:       result.count,
       totalPages:  result.totalPages,
       currentPage: result.currentPage,
-      perPage:     parseInt(limit, 10) || 20,
+      perPage:     Number.parseInt(limit, 10) || 20,
     },
   });
 });

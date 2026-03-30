@@ -76,7 +76,7 @@ const onboardClient = async (requester, rawData, files) => {
         flagsParaProcessar = selectedFlags.map(f => ({
           id:     f.id,
           name:   f.name,
-          price:  parseFloat(f.price || 0),
+          price:  Number.parseFloat(f.price || 0),
           origin: 'individual',
         }));
 
@@ -84,11 +84,11 @@ const onboardClient = async (requester, rawData, files) => {
 
       } else if (plan) {
         // MODO PLANO: preço fechado do plano e bandeiras herdadas
-        valorTotalVenda    = parseFloat(plan.price || 0);
+        valorTotalVenda    = Number.parseFloat(plan.price || 0);
         flagsParaProcessar = plan.flags.map(f => ({
           id:     f.id,
           name:   f.name,
-          price:  parseFloat(f.price || 0),
+          price:  Number.parseFloat(f.price || 0),
           origin: 'plan',
         }));
       }

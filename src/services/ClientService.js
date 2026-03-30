@@ -224,8 +224,8 @@ const recalculateStatus = async (clientId, transaction = null) => {
 
   const stats = { pending: 0, analysis: 0, approved: 0, total: 0 };
   counts.forEach((c) => {
-    if (stats[c.status] !== undefined) stats[c.status] = parseInt(c.total, 10);
-    stats.total += parseInt(c.total, 10);
+    if (stats[c.status] !== undefined) stats[c.status] = Number.parseInt(c.total, 10);
+    stats.total += Number.parseInt(c.total, 10);
   });
 
   let newOverallStatus = 'pending';

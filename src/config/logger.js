@@ -14,7 +14,7 @@ const isProd = process.env.NODE_ENV === 'production';
 
 const mailTransport = nodemailer.createTransport({
   host:   process.env.SMTP_HOST,
-  port:   parseInt(process.env.SMTP_PORT || '587', 10),
+  port:   Number.parseInt(process.env.SMTP_PORT || '587', 10),
   secure: false, // porta 587 usa STARTTLS
   auth: {
     user: process.env.SMTP_USER,

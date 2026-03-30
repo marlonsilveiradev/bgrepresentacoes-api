@@ -6,8 +6,8 @@ const list = catchAsync(async (req, res, next) => {
   const { page, limit, overall_status, benefit_type, partner_id, search } = req.query;
 
   const result = await ClientService.listClients(req.user, {
-    page:           page  ? parseInt(page, 10)  : 1,
-    limit:          limit ? parseInt(limit, 10) : 20,
+    page:           page  ? Number.parseInt(page, 10)  : 1,
+    limit:          limit ? Number.parseInt(limit, 10) : 20,
     overall_status,
     benefit_type,
     partner_id,
@@ -21,7 +21,7 @@ const list = catchAsync(async (req, res, next) => {
       total:       result.count,
       totalPages:  result.totalPages,
       currentPage: result.currentPage,
-      perPage:     parseInt(limit, 10) || 20,
+      perPage:     Number.parseInt(limit, 10) || 20,
     },
   });
 });

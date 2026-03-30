@@ -29,9 +29,9 @@ const salesReport = async (req, res, next) => {
     } = req.query;
 
     const filters = {
-      year:           year   ? parseInt(year, 10)   : undefined,
-      month:          month  ? parseInt(month, 10)  : undefined,
-      day:            day    ? parseInt(day, 10)    : undefined,
+      year:           year   ? Number.parseInt(year, 10)   : undefined,
+      month:          month  ? Number.parseInt(month, 10)  : undefined,
+      day:            day    ? Number.parseInt(day, 10)    : undefined,
       date_start:     date_start || undefined,
       date_end:       date_end   || undefined,
       partner_id:     partner_id || undefined,
@@ -39,8 +39,8 @@ const salesReport = async (req, res, next) => {
     };
 
     const pagination = {
-      page:  page  ? parseInt(page, 10)  : 1,
-      limit: limit ? parseInt(limit, 10) : 20,
+      page:  page  ? Number.parseInt(page, 10)  : 1,
+      limit: limit ? Number.parseInt(limit, 10) : 20,
     };
 
     const result = await ReportService.getSalesReport(filters, pagination);

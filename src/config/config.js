@@ -2,7 +2,7 @@ require('dotenv').config();
 
 module.exports = {
   env:          process.env.NODE_ENV  || 'development',
-  port:         parseInt(process.env.PORT, 10) || 3000,
+  port:         Number.parseInt(process.env.PORT, 10) || 3000,
   appName:      process.env.APP_NAME  || 'BG Representações API',
   appUrl:       process.env.APP_URL   || 'http://localhost:3000',
   isProduction: process.env.NODE_ENV  === 'production',
@@ -16,7 +16,7 @@ module.exports = {
   },
 
   bcrypt: {
-    rounds: parseInt(process.env.BCRYPT_ROUNDS, 10) || 12,
+    rounds: Number.parseInt(process.env.BCRYPT_ROUNDS, 10) || 12,
   },
 
   cloudinary: {
@@ -24,13 +24,13 @@ module.exports = {
     apiKey:         process.env.CLOUDINARY_API_KEY,
     apiSecret:      process.env.CLOUDINARY_API_SECRET,
     folder:         process.env.CLOUDINARY_ASSET_FOLDER        || 'vale_alimentacao',
-    signedUrlExpires: parseInt(process.env.CLOUDINARY_SIGNED_URL_EXPIRES, 10) || 3600,
+    signedUrlExpires: Number.parseInt(process.env.CLOUDINARY_SIGNED_URL_EXPIRES, 10) || 3600,
   },
 
   rateLimit: {
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10)    || 15 * 60 * 1000,
-    max:      parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10)  || 200,
-    authMax:  parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10)      || 10,
+    windowMs: Number.parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10)    || 15 * 60 * 1000,
+    max:      Number.parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10)  || 200,
+    authMax:  Number.parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10)      || 10,
   },
 
   cors: {
@@ -39,7 +39,7 @@ module.exports = {
 
   smtp: {
     host:   process.env.SMTP_HOST,
-    port:   parseInt(process.env.SMTP_PORT, 10) || 587,
+    port:   Number.parseInt(process.env.SMTP_PORT, 10) || 587,
     secure: process.env.SMTP_SECURE === 'true',
     user:   process.env.SMTP_USER,
     pass:   process.env.SMTP_PASS,
@@ -49,8 +49,8 @@ module.exports = {
 
   log: {
     level:              process.env.LOG_LEVEL               || 'info',
-    slowRequestThreshold: parseInt(process.env.SLOW_REQUEST_THRESHOLD, 10) || 2000,
-    errorRateThreshold:   parseInt(process.env.ERROR_RATE_THRESHOLD, 10)   || 10,
+    slowRequestThreshold: Number.parseInt(process.env.SLOW_REQUEST_THRESHOLD, 10) || 2000,
+    errorRateThreshold:   Number.parseInt(process.env.ERROR_RATE_THRESHOLD, 10)   || 10,
   },
 
   upload: {

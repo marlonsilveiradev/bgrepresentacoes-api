@@ -19,7 +19,7 @@ const errorHandler = (err, req, res, next) => {
       // o erro 500 não aconteça e o sistema siga com a mensagem genérica.
       const parts = err.message.split('enum_');
       if (parts && parts.length > 1) {
-        fieldName = parts[1].split(':')[0].split(' ')[0].replace(/_/g, ' ');
+        fieldName = parts[1].split(':')[0].split(' ')[0].replaceAll('_' , ' ');
       }
     } catch (e) {
       // Se falhar a extração, mantemos o fieldName como 'um dos campos'
@@ -38,7 +38,7 @@ const errorHandler = (err, req, res, next) => {
   // 3. Erros de Duplicidade (Unique Constraint)
   if (err.name === 'SequelizeUniqueConstraintError') {
     statusCode = 409;
-    const field = err.errors[0].path.replace(/_/g, ' ').toUpperCase();
+    const field = err.errors[0].path.replaceAll('_' , ' ').toUpperCase();
     message = `O dado informado para o campo ${field} já está em uso.`;
     isOperational = true;
   }
@@ -46,7 +46,7 @@ const errorHandler = (err, req, res, next) => {
   // 3.1 Erro de chave estrangeira (Foreign Key)
 if (err.name === 'SequelizeForeignKeyConstraintError') {
   statusCode = 422;
-  const field = err.index ? err.index.replace(/_/g, ' ') : 'relacionamento';
+  const field = err.index ? err.index.replaceAll('_' , ' ') : 'relacionamento';
   message = `Valor inválido para o campo ${field}. Verifique se o registro relacionado existe.`;
   isOperational = true;
 }

@@ -80,8 +80,8 @@ const _syncClientOverallStatus = async (clientId, transaction) => {
   };
 
   counts.forEach(c => {
-    stats[c.status] = parseInt(c.total, 10);
-    stats.total += parseInt(c.total, 10);
+    stats[c.status] = Number.parseInt(c.total, 10);
+    stats.total += Number.parseInt(c.total, 10);
   });
 
   let newOverallStatus = 'pending';

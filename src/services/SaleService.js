@@ -152,12 +152,12 @@ const createSale = async (requester, { client_id, plan_id, flag_ids = [], notes,
   let resolvedPlanId = null;
 
   if (plan) {
-    total_value    = parseFloat(plan.price);
+    total_value    = Number.parseFloat(plan.price);
     plan_name      = plan.name;
     plan_price     = plan.price;
     resolvedPlanId = plan.id;
   } else {
-    total_value = flags.reduce((sum, f) => sum + parseFloat(f.price), 0);
+    total_value = flags.reduce((sum, f) => sum + Number.parseFloat(f.price), 0);
   }
 
   let sale;

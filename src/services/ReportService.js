@@ -135,7 +135,7 @@ const getSalesReport = async (filters = {}, pagination = {}) => {
     const c     = client.toJSON();
     const sales = c.sales || [];
 
-    const totalValue  = sales.reduce((sum, s) => sum + parseFloat(s.total_value || 0), 0);
+    const totalValue  = sales.reduce((sum, s) => sum + Number.parseFloat(s.total_value || 0), 0);
     const salesCount  = sales.length;
     const latestSale  = [...sales].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
 
@@ -153,9 +153,9 @@ const getSalesReport = async (filters = {}, pagination = {}) => {
 
       // Resumo financeiro do cliente no período
       sales_count:   salesCount,
-      total_value:   parseFloat(totalValue.toFixed(2)),
+      total_value:   Number.parseFloat(totalValue.toFixed(2)),
       average_ticket: salesCount > 0
-        ? parseFloat((totalValue / salesCount).toFixed(2))
+        ? Number.parseFloat((totalValue / salesCount).toFixed(2))
         : 0,
 
       // Plano da venda mais recente (referência rápida)
@@ -166,13 +166,13 @@ const getSalesReport = async (filters = {}, pagination = {}) => {
         sale_id:     s.id,
         status:      s.status,
         plan_name:   s.plan?.name || s.plan_name || null,
-        total_value: parseFloat(s.total_value || 0),
+        total_value: Number.parseFloat(s.total_value || 0),
         created_at:  s.created_at,
         approved_at: s.approved_at || null,
         flags: (s.saleFlags || []).map((sf) => ({
           flag_id:   sf.flag_id,
           flag_name: sf.flag?.name,
-          price:     parseFloat(sf.price || 0),
+          price:     Number.parseFloat(sf.price || 0),
           status:    sf.status,
         })),
       })),
@@ -201,9 +201,9 @@ const getSalesReport = async (filters = {}, pagination = {}) => {
 
   const summary = {
     total_clients:  count,
-    total_sales:    parseInt(summaryResult[0]?.sales_count || 0, 10),
-    total_value:    parseFloat(parseFloat(summaryResult[0]?.total_value || 0).toFixed(2)),
-    average_ticket: parseFloat(parseFloat(summaryResult[0]?.avg_value   || 0).toFixed(2)),
+    total_sales:    Number.parseInt(summaryResult[0]?.sales_count || 0, 10),
+    total_value:    Number.parseFloat(Number.parseFloat(summaryResult[0]?.total_value || 0).toFixed(2)),
+    average_ticket: Number.parseFloat(Number.parseFloat(summaryResult[0]?.avg_value   || 0).toFixed(2)),
   };
 
   // ── Meta — facilita geração de cabeçalho no PDF ───────────────────────────

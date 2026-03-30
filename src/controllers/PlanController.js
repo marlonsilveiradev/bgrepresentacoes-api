@@ -5,8 +5,8 @@ const list = catchAsync(async (req, res, next) => {
   const { page, limit, is_active, flag_id, search } = req.query;
 
   const result = await PlanService.listPlans({
-    page:      page  ? parseInt(page, 10)  : 1,
-    limit:     limit ? parseInt(limit, 10) : 20,
+    page:      page  ? Number.parseInt(page, 10)  : 1,
+    limit:     limit ? Number.parseInt(limit, 10) : 20,
     is_active: is_active !== undefined ? is_active === 'true' : undefined,
     flag_id,
     search,
@@ -19,7 +19,7 @@ const list = catchAsync(async (req, res, next) => {
       total:       result.count,
       totalPages:  result.totalPages,
       currentPage: result.currentPage,
-      perPage:     parseInt(limit, 10) || 20,
+      perPage:     Number.parseInt(limit, 10) || 20,
     },
   });
 });
