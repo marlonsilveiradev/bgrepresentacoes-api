@@ -142,6 +142,12 @@ const updateClientSchema = yup.object({
     .optional(),
 
   state_registration: yup.string().max(20).trim().nullable().optional(),
+  
+  responsible_name: yup
+    .string()
+    .max(200)
+    .trim()
+    .required('O nome do responsável é obrigatório.'),
 
   phone: yup
     .string()
