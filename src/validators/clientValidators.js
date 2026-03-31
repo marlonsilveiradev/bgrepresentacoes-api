@@ -2,7 +2,7 @@ const yup = require('yup');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const CNPJ_REGEX = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/;
-const ZIP_REGEX = /^\d{5}-\d{3}$/;
+const ZIP_REGEX = /^\d{5}-?\d{3}$/;
 const UF_LIST = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
   'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
@@ -27,12 +27,11 @@ const createClientSchema = yup.object({
 
   cnpj: yup
     .string()
-    .required('CNPJ é obrigatório.')
-    .matches(CNPJ_REGEX, 'CNPJ deve estar no formato 00.000.000/0000-00.'),
+    .required('CNPJ é obrigatório.'),
 
   phone: yup
     .string()
-    .max(20, 'Telefone deve ter no máximo 20 caracteres.')
+    .max(11, 'Telefone deve ter no máximo 11 caracteres.')
     .trim()
     .nullable()
     .optional(),
@@ -91,7 +90,6 @@ const createClientSchema = yup.object({
 
   address_zip: yup
     .string()
-    .matches(ZIP_REGEX, 'CEP deve estar no formato 00000-000.')
     .nullable()
     .optional(),
 

@@ -111,7 +111,7 @@ const getById = catchAsync(async (req, res, next) => {
     // Se for Admin ou User, envia o objeto completo (ou aplique outra trava se desejar)
     responseData = data;
   }
-  console.log('Cliente encontrado:', responseData); // Log para verificar o que será retornado
+  
   // 5. Retorno com sucesso
   return res.status(200).json({ 
     status: 'success',
@@ -119,40 +119,38 @@ const getById = catchAsync(async (req, res, next) => {
   });
 });
 
+
+
 // PATCH /api/v1/clients/:id
 const updateClient = catchAsync(async (req, res) => {
-  const rawFiles = req.files || []; 
-  
-  // Se vier no formato do FormData (com campo 'data' stringificado), faz o parse.
-  // Se não, usa o req.body normal.
+  // 1. Log para depuração (já confirmamos que req.files é um objeto nos logs anteriores)
+  console.log('Arquivos recebidos no Controller:', req.files);
+  console.log('Dados recebidos (já parseados):', req.body);
+
+  // 2. Se o parseMultipartBody já rodou, o req.body já é o objeto final.
+  // Se não, mantemos sua lógica de segurança abaixo:
   let updateData = req.body;
   if (req.body.data && typeof req.body.data === 'string') {
-    try {
-      updateData = JSON.parse(req.body.data);
-    } catch (err) {
-      console.error('Erro ao processar FormData JSON:', err.message);
-      return res.status(400).json({ status: 'error', message: 'JSON malformado no campo data' });
-    }
+    updateData = JSON.parse(req.body.data);
   }
 
-  const organizedFiles = rawFiles.length > 0
-    ? {
-        contrato:   rawFiles.filter(f => f.fieldname.trim() === 'contrato'),
-        documentos: rawFiles.filter(f => f.fieldname.trim() === 'documentos'),
-      }
+  // 3. ORGANIZAÇÃO CORRETA: req.files é um objeto { campo: [arquivo] }
+  // Vamos passar o objeto inteiro para o Service, ele saberá o que fazer.
+  const organizedFiles = req.files && Object.keys(req.files).length > 0 
+    ? req.files 
     : null;
- 
+
   const client = await ClientService.updateClient(
     req.params.id,
     req.user,
-    updateData, // <--- Agora usamos o dado tratado
+    updateData, 
     organizedFiles
   );
- 
+
   return res.status(200).json({
-    status:  'success',
+    status: 'success',
     message: 'Cliente atualizado com sucesso.',
-    data:    client,
+    data: client,
   });
 });
 

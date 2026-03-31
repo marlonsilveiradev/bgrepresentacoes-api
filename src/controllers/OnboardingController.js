@@ -14,13 +14,13 @@ const start = catchAsync(async (req, res, next) => {
     bodyData = req.body.data || req.body;
   }
 
-  const files = req.files || [];
+  const files = req.files || {};
 
   // Organização dos arquivos
   const organizedFiles = {
-    contrato: files.filter(f => f.fieldname.trim() === 'contrato'),
-    documentos: files.filter(f => f.fieldname.trim() === 'documentos')
-  };
+  contrato: files.contrato || [],
+  documentos: files.documentos || []
+};
 
   // O Service agora é quem manda. Se falhar, o catchAsync joga pro errorHandler
   const result = await OnboardingService.onboardClient(req.user, bodyData, organizedFiles);

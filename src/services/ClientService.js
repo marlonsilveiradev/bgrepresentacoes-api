@@ -141,15 +141,31 @@ const updateClient = async (id, requester, data, files = null) => {
   const uploadedPublicIds = [];
   const oldPublicIdsToDelete = [];
 
-  if (partner_id && (requester.role === 'admin' || (requester.role === 'user' && client.created_by === requester.id))) {
-    const partner = await User.findByPk(partner_id);
-    if (!partner || partner.role !== 'partner') throw new AppError('Parceiro inválido.', 422);
-    clientData.partner_id = partner_id;
+  if (Object.prototype.hasOwnProperty.call(data, 'partner_id')) {
+  // Verifica permissão
+  if (requester.role === 'admin' || (requester.role === 'user' && client.created_by === requester.id)) {
+    
+    if (partner_id) {
+      // Se enviou um ID, valida se o parceiro existe
+      const partner = await User.findByPk(partner_id);
+      if (!partner || partner.role !== 'partner') {
+        throw new AppError('Parceiro inválido.', 422);
+      }
+      clientData.partner_id = partner_id;
+    } else {
+      // Se enviou null ou "", define como null para remover do banco
+      clientData.partner_id = null;
+    }
   }
+} else if (partner_id !== undefined) {
+  // Se o campo partner_id está presente mas não é para ser editado, lança erro
+  throw new AppError('Você não tem permissão para alterar o parceiro deste cliente.', 403);
+}
 
   const t = await Client.sequelize.transaction();
 
   try {
+    console.log('DADOS PARA UPDATE NO BANCO:', clientData);
     await client.update(clientData, { transaction: t });
 
     if (bankAccount) {
@@ -162,66 +178,71 @@ const updateClient = async (id, requester, data, files = null) => {
     }
 
     if (files) {
-      const toProcess = [];
+      const fieldToDocType = {
+        'contrato': 'company_document',
+        'proof_of_address': 'proof_of_address',
+        'bank_account_proof': 'bank_account_proof',
+        'card_machine_proof': 'card_machine_proof'
+      };
 
-      if (files.contrato?.length > 0) {
-        toProcess.push({ file: files.contrato[0], type: 'company_document' });
-      }
+      for (const [fieldName, docType] of Object.entries(fieldToDocType)) {
+        if (files[fieldName] && files[fieldName][0]) {
+          const file = files[fieldName][0];
 
-      if (files.documentos?.length > 0) {
-        const types = ['proof_of_address', 'bank_account_proof', 'card_machine_proof'];
-        files.documentos.forEach((file, index) => {
-          if (types[index]) toProcess.push({ file, type: types[index] });
-        });
-      }
+          // 1. Upload para o Cloudinary
+          const upload = await StorageService.uploadToCloudinary(file.buffer, `client_${id}_${docType}`);
+          uploadedPublicIds.push(upload.public_id);
 
-      for (const item of toProcess) {
-        const { file, type } = item;
+          // 2. Busca se já existe este tipo de documento para o cliente
+          const existingDoc = await ClientDocument.findOne({
+            where: { client_id: id, document_type: docType },
+            transaction: t,
+          });
 
-        const upload = await StorageService.uploadToCloudinary(file.buffer, `client_${id}_${type}`);
-        uploadedPublicIds.push(upload.public_id);
+          if (existingDoc) {
+            // Guarda o public_id antigo para deletar depois do commit
+            if (existingDoc.cloudinary_public_id !== upload.public_id) {
+              oldPublicIdsToDelete.push(existingDoc.cloudinary_public_id);
+            }
 
-        const existingDoc = await ClientDocument.findOne({
-          where: { client_id: id, document_type: type },
-          transaction: t,
-        });
-
-        if (existingDoc) {
-          if (existingDoc.cloudinary_public_id !== upload.public_id) {
-            oldPublicIdsToDelete.push(existingDoc.cloudinary_public_id);
+            await existingDoc.update({
+              cloudinary_public_id: upload.public_id,
+              original_name: file.originalname,
+              mime_type: file.mimetype,
+              file_size: file.size,
+              uploaded_by: requester.id // Log de quem atualizou
+            }, { transaction: t });
+          } else {
+            await ClientDocument.create({
+              client_id: id,
+              document_type: docType,
+              cloudinary_public_id: upload.public_id,
+              original_name: file.originalname,
+              mime_type: file.mimetype,
+              file_size: file.size,
+              uploaded_by: requester.id,
+            }, { transaction: t });
           }
-          await existingDoc.update({
-            cloudinary_public_id: upload.public_id,
-            original_name: file.originalname,
-            mime_type: file.mimetype,
-            file_size: file.size,
-          }, { transaction: t });
-        } else {
-          await ClientDocument.create({
-            client_id: id,
-            document_type: type,
-            cloudinary_public_id: upload.public_id,
-            original_name: file.originalname,
-            mime_type: file.mimetype,
-            file_size: file.size,
-            uploaded_by: requester.id,
-          }, { transaction: t });
         }
       }
     }
 
     await t.commit();
 
+    // Limpeza de arquivos antigos (fora da transação)
     for (const oldId of oldPublicIdsToDelete) {
-      StorageService.deleteFromCloudinary(oldId).catch(e => logger.error(`Erro ao remover imagem antiga: ${e}`));
+      console.log(`[DEBUG] Tentando remover arquivo antigo do Cloudinary: ${oldId}`);
+      StorageService.deleteFromCloudinary(oldId).catch(e => console.error(`Erro ao remover imagem antiga: ${e}`));
     }
 
     return getClientById(id, requester);
 
   } catch (error) {
-    await t.rollback();
+    if (t) await t.rollback();
+    
+    // Cleanup de uploads que deram certo mas a transação falhou
     for (const newId of uploadedPublicIds) {
-      StorageService.deleteFromCloudinary(newId).catch(e => logger.error(`Erro ao limpar upload falho: ${e}`));
+      StorageService.deleteFromCloudinary(newId).catch(e => console.error(`Erro ao limpar upload falho: ${e}`));
     }
     throw error;
   }

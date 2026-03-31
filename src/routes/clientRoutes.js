@@ -2,7 +2,7 @@ const { Router } = require('express');
 const ClientController = require('../controllers/ClientController');
 const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
 const { validate } = require('../middlewares/validationMiddleware');
-const { onboardingUpload } = require('../middlewares/uploadMiddleware');
+const { clientUpdateUpload } = require('../middlewares/uploadMiddleware');
 const {
   updateClientSchema,
   clientIdParamSchema,
@@ -17,13 +17,22 @@ const router = Router();
  * Se não vier campo 'data' (requisição JSON normal), não faz nada.
  */
 const parseMultipartBody = (req, res, next) => {
-  if (req.body && typeof req.body.data === 'string') {
+  // Se o corpo estiver vazio, prossegue para o validador (que dará erro 422 se necessário)
+  if (!req.body) return next();
+
+  // Caso A: multipart/form-data (o Multer coloca os campos em req.body.data como string)
+  if (typeof req.body.data === 'string') {
     try {
       req.body = JSON.parse(req.body.data.trim());
-    } catch {
+    } catch (err) {
       return res.status(400).json({ error: 'O campo "data" deve ser um JSON válido.' });
     }
-  }
+  } 
+  
+  // Caso B: Já é um JSON (application/json)
+  // Se req.body já for um objeto e não tiver o campo .data, não fazemos nada, 
+  // apenas deixamos passar para o validate(updateClientSchema).
+
   return next();
 };
 
@@ -130,10 +139,10 @@ router.get(
 router.patch(
   '/:id',
   authorize('admin', 'user'),
+  clientUpdateUpload,
+  parseMultipartBody,
   validate(clientIdParamSchema, 'params'),
-  onboardingUpload,               // multer processa arquivos (ignorado se não vier multipart)
-  parseMultipartBody,       // 2. move req.body.data → req.body (antes da validação)
-  validate(updateClientSchema),   // Yup valida o body após o multer
+  validate(updateClientSchema),
   ClientController.updateClient
 );
 

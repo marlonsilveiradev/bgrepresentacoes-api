@@ -40,13 +40,25 @@ const uploadToCloudinary = (buffer, customFilename = '') => {
  */
 const deleteFromCloudinary = async (publicId) => {
   try {
-    const result = await cloudinary.uploader.destroy(publicId, {
-      type:          'authenticated',
-      resource_type: 'auto',
-      invalidate:    true,
+    // 1. Tentamos deletar como 'raw' (comum para PDFs e documentos)
+    let result = await cloudinary.uploader.destroy(publicId, {
+      type: 'authenticated',
+      resource_type: 'raw', // Mudamos de 'auto' para 'raw'
+      invalidate: true,
     });
+
+    // 2. Se o resultado não for 'ok' (ex: o arquivo era um PNG/JPG e está na categoria 'image')
+    if (result.result !== 'ok') {
+      result = await cloudinary.uploader.destroy(publicId, {
+        type: 'authenticated',
+        resource_type: 'image',
+        invalidate: true,
+      });
+    }
+
     return result;
   } catch (error) {
+    // Mantive seu logger original
     logger.error({ err: error, publicId }, 'Erro ao remover arquivo do Cloudinary');
   }
 };

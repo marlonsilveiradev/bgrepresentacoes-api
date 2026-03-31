@@ -26,11 +26,17 @@ const upload = multer({
 });
 
 const onboardingUpload = (req, res, next) => {
-  upload.any()(req, res, (err) => {
+  // Definimos exatamente quais campos o Multer deve esperar
+  const uploadFields = upload.fields([
+    { name: 'contrato', maxCount: 1 },
+    { name: 'documentos', maxCount: 3 }
+  ]);
+
+  uploadFields(req, res, (err) => {
     if (err) {
       logger.error({ err }, 'Erro no upload de arquivo.');
-      if (err.code === 'LIMIT_FILE_COUNT') {
-        return res.status(400).json({ error: 'Máximo de 5 arquivos por requisição.' });
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({ error: `Campo de arquivo inesperado: ${err.field}` });
       }
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({ error: 'Arquivo muito grande. Tamanho máximo: 3MB.' });
@@ -38,9 +44,10 @@ const onboardingUpload = (req, res, next) => {
       return next(err);
     }
 
-    // Sanitiza nomes apenas se vieram arquivos — não bloqueia requisições sem arquivo
-    if (req.files?.length > 0) {
-      req.files.forEach(file => {
+    // Com .fields(), o Multer coloca os arquivos em req.files como um OBJETO de arrays
+    // Ex: req.files.contrato[0]
+    if (req.files) {
+      Object.values(req.files).flat().forEach(file => {
         file.originalname = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
       });
     }
@@ -49,4 +56,33 @@ const onboardingUpload = (req, res, next) => {
   });
 };
 
-module.exports = { onboardingUpload };
+const clientUpdateUpload = (req, res, next) => {
+  // Aqui validamos os campos específicos que o seu Update do backend espera
+  const uploadFields = upload.fields([
+    { name: 'contrato', maxCount: 1 },
+    { name: 'proof_of_address', maxCount: 1 },
+    { name: 'bank_account_proof', maxCount: 1 },
+    { name: 'card_machine_proof', maxCount: 1 }
+  ]);
+
+  uploadFields(req, res, (err) => {
+    if (err) {
+      logger.error({ err }, 'Erro no upload de arquivo durante update.');
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({ 
+          error: `Campo de arquivo inválido: ${err.field}. Use as chaves: contrato, proof_of_address, bank_account_proof ou card_machine_proof.` 
+        });
+      }
+      return next(err);
+    }
+
+    if (req.files) {
+      Object.values(req.files).flat().forEach(file => {
+        file.originalname = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      });
+    }
+    next();
+  });
+};
+
+module.exports = { onboardingUpload, clientUpdateUpload };
