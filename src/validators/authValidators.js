@@ -42,4 +42,10 @@ const changePasswordSchema = yup.object({
     .oneOf([yup.ref('newPassword')], 'As senhas não coincidem.'),
 });
 
-module.exports = { loginSchema, changePasswordSchema, STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE };
+  const refreshSchema = yup.object({
+  refreshToken: yup
+    .string()
+    .required('Refresh token é obrigatório.'),
+});
+
+module.exports = { loginSchema, changePasswordSchema, refreshSchema, STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE };

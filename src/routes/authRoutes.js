@@ -3,7 +3,7 @@ const AuthController = require('../controllers/AuthController');
 const { authMiddleware } = require('../middlewares/authMiddleware');
 const { authLimiter } = require('../middlewares/rateLimiter');
 const { validate } = require('../middlewares/validationMiddleware');
-const { loginSchema, changePasswordSchema } = require('../validators/authValidators');
+const { loginSchema, changePasswordSchema, refreshSchema } = require('../validators/authValidators');
 
 const router = Router();
 
@@ -121,7 +121,7 @@ router.patch(
  *       401:
  *         description: Refresh token inválido ou expirado
  */
-router.post('/refresh', AuthController.refresh);
+router.post('/refresh', validate(refreshSchema), AuthController.refresh);
 
 /**
  * @swagger

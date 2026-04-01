@@ -9,9 +9,8 @@ const { hashToken } = require('../utils/tokenHash');
  */
 
 // ─── POST /api/v1/auth/login ──────────────────────────────────────────────────
-const login = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
-  const result = await AuthService.login(email, password);
+const login = catchAsync(async (req, res) => {
+  const result = await AuthService.login(req.body.email, req.body.password);
 
   return res.status(200).json({
     status: 'success',
@@ -23,7 +22,7 @@ const login = catchAsync(async (req, res, next) => {
 });
 
 // ─── PATCH /api/v1/auth/change-password ──────────────────────────────────────
-const changePassword = catchAsync(async (req, res, next) => {
+const changePassword = catchAsync(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   const userId = req.user.id; // injetado pelo authMiddleware
 
@@ -31,20 +30,13 @@ const changePassword = catchAsync(async (req, res, next) => {
 
   return res.status(200).json({
     status: 'success',
-    ...result
+    data: result
   });
 });
 
 // ─── POST /api/v1/auth/refresh ────────────────────────────────────────────────
-const refresh = catchAsync(async (req, res, next) => {
+const refresh = catchAsync(async (req, res) => {
   const { refreshToken } = req.body;
-
-  if (!refreshToken) {
-    return res.status(400).json({ 
-      status: 'fail', 
-      message: 'Refresh token não fornecido.' 
-    });
-  }
 
   const result = await AuthService.refreshAccessToken(refreshToken);
 
@@ -56,7 +48,7 @@ const refresh = catchAsync(async (req, res, next) => {
 });
 
 // ─── POST /api/v1/auth/logout ────────────────────────────────────────────────
-const logout = catchAsync(async (req, res, next) => {
+const logout = catchAsync(async (req, res) => {
   const { refreshToken } = req.body;
 
   if (refreshToken) {
