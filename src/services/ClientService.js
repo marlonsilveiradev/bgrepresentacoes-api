@@ -4,6 +4,7 @@ const { buildClientAccessFilter } = require('../helpers/accessControl');
 const AppError = require('../utils/AppError');
 const logger = require('../config/logger');
 const StorageService = require('./StorageService');
+const { ROLES } = require('../constants/roles');
 
 // ─── Include padrão para queries ──────────────────────────────────────────────
 const _defaultIncludes = () => [
@@ -21,12 +22,16 @@ const _defaultIncludes = () => [
 ];
 
 // ─── Verificações Auxiliares ──────────────────────────────────────────────────
-const _assertCanWrite = (client, requesterId, requesterRole) => {
-  if (requesterRole === 'admin') return;
-  if (requesterRole === 'partner') {
-    throw new AppError('Parceiros não têm permissão para editar dados de clientes.', 403);
+const _assertCanWrite = (client, requesterId) => {
+  const { id, role } = requester;
+  // Admin pode tudo
+  if (role === ROLES.ADMIN) return;
+  // Partner nunca pode editar
+  if (role === ROLES.PARTNER) {
+    throw new AppError('Parceiros não têm permissão para editar clientes.', 403);
   }
-  if (requesterRole === 'user' && client.created_by !== requesterId) {
+  // User só pode editar o que criou
+  if (role === ROLES.USER && client.created_by !== id) {
     throw new AppError('Acesso negado: você não é o proprietário deste registro.', 403);
   }
 };
