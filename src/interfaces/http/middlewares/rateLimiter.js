@@ -24,17 +24,17 @@ const defaultLimiter = rateLimit({
   },
 });
 
-// 🔐 Limite para login (CRÍTICO)
+// Limite para login (CRÍTICO)
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 🔒 15 minutos
+  windowMs: 15 * 60 * 1000, // 15 minutos
   max: appConfig.rateLimit.authMax, // ex: 5 tentativas
   standardHeaders: true,
   legacyHeaders: false,
 
-  skipSuccessfulRequests: true, // ✅ não conta login correto
+  skipSuccessfulRequests: true, // não conta login correto
 
   keyGenerator: (req) => {
-    // 🔒 Combina IP + email para evitar bloqueios injustos
+    // Combina IP + email para evitar bloqueios injustos
     return `${req.ip}_${req.body?.email || 'unknown'}`;
   },
 

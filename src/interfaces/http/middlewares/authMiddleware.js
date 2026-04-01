@@ -42,7 +42,7 @@ const authMiddleware = async (req, res, next) => {
     return next();
   } catch (err) {
     // 1. Tratamento específico para erros de Token (Expirado ou Inválido)
-    if (err.message.includes('Token expirado') || err.message.includes('Token inválido')) {
+    if (err.name === 'AppError' && (err.code === 'TOKEN_EXPIRED' || err.code === 'TOKEN_INVALID')) {
       return res.status(401).json({
         error: 'Não autorizado',
         message: err.message

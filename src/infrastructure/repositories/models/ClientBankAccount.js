@@ -42,9 +42,16 @@ module.exports = (sequelize) => {
         type: DataTypes.ENUM('checking', 'savings'),
         allowNull: false,
       },
+      deleted_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       tableName: 'client_bank_accounts',
+      timestamps: true,
+      paranoid: true,        // ativa soft delete
+      underscored: true,
       indexes: [
         { fields: ['client_id'] },
       ],

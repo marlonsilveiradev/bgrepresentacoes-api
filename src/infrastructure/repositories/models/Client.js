@@ -9,13 +9,11 @@ module.exports = (sequelize) => {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
       },
-      // Protocolo: YYYYMMDD + sequência (ex: 202603090001)
       protocol: {
         type: DataTypes.STRING(20),
         allowNull: false,
-        unique: true,
+        // unique: true removido – índice parcial na migration
       },
-      // Dados da empresa (pessoa jurídica)
       corporate_name: {
         type: DataTypes.STRING(200),
         allowNull: false,
@@ -31,13 +29,22 @@ module.exports = (sequelize) => {
       cnpj: {
         type: DataTypes.STRING(18),
         allowNull: false,
-        unique: true,
+        // unique: true removido – índice parcial na migration
       },
       state_registration: {
         type: DataTypes.STRING(15),
         allowNull: true,
         field: 'state_registration',
-        unique: true,
+        unique: true, // Mantido porque não há soft delete para este campo (ou pode ser parcial se quiser)
+      },
+      machine_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: { model: 'machines', key: 'id' },
+      },
+      machine_affiliation_code: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
       },
       phone: {
         type: DataTypes.STRING(20),
@@ -76,12 +83,10 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(9),
         allowNull: true,
       },
-      // Tipo de benefício do cartão
       benefit_type: {
         type: DataTypes.ENUM('food', 'meal', 'both'),
         allowNull: false,
       },
-      // Status calculado automaticamente com base nas bandeiras (sem 'rejected')
       overall_status: {
         type: DataTypes.ENUM('pending', 'analysis', 'approved'),
         defaultValue: 'pending',
@@ -100,16 +105,23 @@ module.exports = (sequelize) => {
         allowNull: true,
         references: { model: 'users', key: 'id' },
       },
+      deleted_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       tableName: 'clients',
+      timestamps: true,
+      paranoid: true,        // ativa soft delete
+      underscored: true,
       indexes: [
         { fields: ['created_by'] },
         { fields: ['partner_id'] },
         { fields: ['overall_status'] },
         { fields: ['benefit_type'] },
-        { unique: true, fields: ['protocol'] },
-        { unique: true, fields: ['cnpj'] },
+        { fields: ['machine_id'] },
+        // protocol e cnpj terão índices únicos parciais na migration (ver abaixo)
       ],
     }
   );
@@ -117,6 +129,7 @@ module.exports = (sequelize) => {
   Client.associate = (db) => {
     Client.belongsTo(db.User, { foreignKey: 'created_by', as: 'creator' });
     Client.belongsTo(db.User, { foreignKey: 'partner_id', as: 'partner' });
+    Client.belongsTo(db.Machine, { foreignKey: 'machine_id', as: 'machine' });
     Client.hasMany(db.ClientFlag, { foreignKey: 'client_id', as: 'clientFlags' });
     Client.hasMany(db.ClientDocument, { foreignKey: 'client_id', as: 'documents' });
     Client.hasMany(db.ClientBankAccount, { foreignKey: 'client_id', as: 'bankAccounts' });

@@ -56,7 +56,7 @@ module.exports = {
 
       account_type: {
         type: Sequelize.ENUM('checking', 'savings'),
-        allowNull: true
+        allowNull: false
       },
 
       created_at: {

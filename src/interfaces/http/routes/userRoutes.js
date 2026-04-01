@@ -81,6 +81,9 @@ router.patch(
   UserController.updateProfile
 );
 
+// ─── Rotas administrativas ────────────────────────────────────────────────────
+// A partir daqui, apenas admin tem acesso.
+router.use(authorize('admin'));
 /**
  * GET /api/v1/users
  * Lista todos os usuários com paginação e filtros.
@@ -119,11 +122,6 @@ router.get(
   validate(listUsersQuerySchema, 'query'),
   UserController.list
 );
-
-// ─── Rotas administrativas ────────────────────────────────────────────────────
-// A partir daqui, apenas admin tem acesso.
-router.use(authorize('admin'));
-
 
 
 /**

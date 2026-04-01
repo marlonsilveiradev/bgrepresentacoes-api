@@ -22,9 +22,9 @@ const verifyToken = (token) => {
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       // Retornamos um erro customizado ou uma flag
-      throw new AppError('Token expirado. Faça login novamente.', 401);
+      throw new AppError('Token expirado. Faça login novamente.', 401, null, 'TOKEN_EXPIRED');
     }
-    throw new AppError('Token inválido ou malformado.', 401);
+    throw new AppError('Token inválido ou malformado.', 401, null, 'TOKEN_INVALID');
   }
 };
 

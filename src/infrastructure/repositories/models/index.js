@@ -40,6 +40,7 @@ const ClientDocument = require('./ClientDocument')(sequelize);
 const ClientBankAccount = require('./ClientBankAccount')(sequelize);
 const Sale = require('./Sale')(sequelize);
 const SaleFlag = require('./SaleFlag')(sequelize);
+const Machine = require('./Machine')(sequelize);
 
 const db = {
   sequelize,
@@ -55,6 +56,7 @@ const db = {
   ClientBankAccount,
   Sale,
   SaleFlag,
+  Machine,
 };
 
 // Run associations

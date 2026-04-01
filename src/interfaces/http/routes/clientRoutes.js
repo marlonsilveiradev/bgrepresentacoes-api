@@ -6,7 +6,6 @@ const { defaultLimiter } = require('../../http/middlewares/rateLimiter');
 const parseMultipartBody = require('../../http/middlewares/parseMultipartBody');
 const { validate } = require('../../http/middlewares/validationMiddleware');
 const { clientUpdateUpload } = require('../../http/middlewares/uploadMiddleware');
-const AppError = require('../../../shared/utils/AppError');
 const {
   updateClientSchema,
   clientIdParamSchema,

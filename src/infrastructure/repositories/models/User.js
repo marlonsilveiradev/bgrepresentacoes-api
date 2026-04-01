@@ -19,28 +19,34 @@ module.exports = (sequelize) => {
       email: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        unique: true,
         validate: { isEmail: true },
+        // unique: true removido – a unicidade será garantida por índice parcial na migration
       },
       password: {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
-          // Validação aplicada ANTES do hash (apenas no valor em plain text)
           isStrongPassword(value) {
-            // 1. Se não houver valor (não está sendo alterado), permite passar
             if (!value) return;
-
-            // 2. Se já for um hash, permite passar
             if (value.startsWith('$2')) return;
-
-            // 3. Se houver valor e não for hash, valida a força
             if (value.length < 8 || !STRONG_PASSWORD_REGEX.test(value)) {
               throw new Error(STRONG_PASSWORD_MESSAGE);
             }
           },
         },
       },
+      cpf: {
+        type: DataTypes.STRING(14),
+        allowNull: true,
+        // unique: true removido – índice parcial na migration
+      },
+      address_street: DataTypes.STRING(255),
+      address_number: DataTypes.STRING(10),
+      address_complement: DataTypes.STRING(100),
+      address_neighborhood: DataTypes.STRING(100),
+      address_city: DataTypes.STRING(100),
+      address_state: DataTypes.STRING(2),
+      address_zip: DataTypes.STRING(9),
       role: {
         type: DataTypes.ENUM('admin', 'user', 'partner'),
         allowNull: false,
@@ -55,9 +61,16 @@ module.exports = (sequelize) => {
         allowNull: true,
         comment: 'NULL = primeiro login ainda não realizado (deve trocar a senha)',
       },
+      deleted_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       tableName: 'users',
+      timestamps: true,
+      paranoid: true,        // ativa soft delete
+      underscored: true,
       hooks: {
         beforeCreate: async (user) => {
           user.password = await bcrypt.hash(user.password, appConfig.bcrypt.rounds);
@@ -71,18 +84,10 @@ module.exports = (sequelize) => {
     }
   );
 
-  /**
-   * Compara uma senha em texto plano com o hash armazenado.
-   * @param {string} plainPassword
-   * @returns {Promise<boolean>}
-   */
   User.prototype.checkPassword = function (plainPassword) {
     return bcrypt.compare(plainPassword, this.password);
   };
 
-  /**
-   * Remove campos sensíveis da serialização JSON.
-   */
   User.prototype.toJSON = function () {
     const values = { ...this.get() };
     delete values.password;
