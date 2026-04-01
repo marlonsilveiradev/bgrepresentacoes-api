@@ -15,7 +15,6 @@ const list = catchAsync(async (req, res, next) => {
 });
   // --- Filtragem de segurança para a lista de clientes ---
   let rows = result.rows.map(client => {
-  // 1. Força a virar um objeto JS puro e simples
   const data = client.get({ plain: true });
 
   if (req.user.role === 'partner') {    
