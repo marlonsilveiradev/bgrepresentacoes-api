@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { Client, User, Flag, ClientFlag, ClientBankAccount, Sale, ClientDocument } = require('../models');
+const { buildClientAccessFilter } = require('../helpers/accessControl');
 const AppError = require('../utils/AppError');
 const logger = require('../config/logger');
 const StorageService = require('./StorageService');
@@ -31,38 +32,31 @@ const _assertCanWrite = (client, requesterId, requesterRole) => {
 };
 
 // ─── Funções Principais ───────────────────────────────────────────────────────
-
 /**
  * Listagem com filtros e paginação
  */
-
 const listClients = async (requester, { page = 1, limit = 20, overall_status, benefit_type, partner_id, search } = {}) => {
   const offset = (page - 1) * limit;
-  
-  // 1. Definição do Escopo de Segurança (Baseado no Role)
-  const securityConditions = {};
 
-  if (requester.role === 'user') {
-    securityConditions.created_by = requester.id;
-  } else if (requester.role === 'partner') {
-    securityConditions.partner_id = requester.id;
-  } else if (requester.role === 'admin' && partner_id) {
-    // Admin pode filtrar por um parceiro específico se desejar
-    securityConditions.partner_id = partner_id;
+  // 1. Definição do Escopo de Segurança (Baseado no Role)
+  let baseFilter = {};
+
+  if (requester.role === 'admin' && partner_id) {
+    baseFilter.partner_id = partner_id;
   }
+
+  const securityConditions = buildClientAccessFilter(requester, baseFilter);
 
   // 2. Filtros de Status e Tipo
   const filterConditions = {};
   if (overall_status) filterConditions.overall_status = overall_status;
   if (benefit_type) filterConditions.benefit_type = benefit_type;
 
-    // 3. Combinar todas as condições
+  // 3. Combinar todas as condições
   const whereConditions = [];
 
   // Adiciona condições de segurança se não estiver vazias
-  if (Object.keys(securityConditions).length > 0) {
-    whereConditions.push(securityConditions);
-  }
+  whereConditions.push(securityConditions);
 
   // Adiciona condições de filtro
   if (Object.keys(filterConditions).length > 0) {
@@ -70,7 +64,7 @@ const listClients = async (requester, { page = 1, limit = 20, overall_status, be
   }
 
   // 3. Filtro de Busca (Search)
-    if (search && search.trim() !== '') {
+  if (search && search.trim() !== '') {
     whereConditions.push({
       [Op.or]: [
         { corporate_name: { [Op.iLike]: `%${search}%` } },
@@ -81,8 +75,8 @@ const listClients = async (requester, { page = 1, limit = 20, overall_status, be
     });
   }
 
-    // Define o where final
-  const where = whereConditions.length > 0 
+  // Define o where final
+  const where = whereConditions.length > 0
     ? { [Op.and]: whereConditions }
     : {};
 
@@ -110,11 +104,19 @@ const listClients = async (requester, { page = 1, limit = 20, overall_status, be
  * Busca detalhada (Admin/User/Partner)
  */
 const getClientById = async (id, requester) => {
-  const client = await Client.findByPk(id, { include: _defaultIncludes() });
-  if (!client) throw new AppError('Cliente não encontrado.', 404);
+  const accessFilter = buildClientAccessFilter(requester);
 
-  if (requester.role === 'user' && client.created_by !== requester.id) throw new AppError('Acesso negado.', 403);
-  if (requester.role === 'partner' && client.partner_id !== requester.id) throw new AppError('Acesso negado.', 403);
+  const client = await Client.findOne({
+    where: {
+      id,
+      ...accessFilter,
+    },
+    include: _defaultIncludes(),
+  });
+
+  if (!client) {
+    throw new AppError('Cliente não encontrado ou acesso negado.', 404);
+  }
 
   const clientJson = client.toJSON();
 
@@ -132,40 +134,66 @@ const getClientById = async (id, requester) => {
  * Edição de dados (Core Management)
  */
 const updateClient = async (id, requester, data, files = null) => {
-  const client = await Client.findByPk(id);
-  if (!client) throw new AppError('Cliente não encontrado.', 404);
+  // Aplica controle de acesso direto na query
+  const accessFilter = buildClientAccessFilter(requester);
+
+  const client = await Client.findOne({
+    where: {
+      id,
+      ...accessFilter,
+    },
+  });
+
+  if (!client) {
+    throw new AppError('Cliente não encontrado ou acesso negado.', 404);
+  }
 
   _assertCanWrite(client, requester.id, requester.role);
 
-  const { partner_id, bankAccount, ...clientData } = data || {};
-  const uploadedPublicIds = [];
-  const oldPublicIdsToDelete = [];
+   if (!data) {
+    throw new AppError('Dados para atualização não fornecidos.', 400);
+  }
 
-  if (Object.prototype.hasOwnProperty.call(data, 'partner_id')) {
-  // Verifica permissão
-  if (requester.role === 'admin' || (requester.role === 'user' && client.created_by === requester.id)) {
-    
-    if (partner_id) {
-      // Se enviou um ID, valida se o parceiro existe
-      const partner = await User.findByPk(partner_id);
-      if (!partner || partner.role !== 'partner') {
-        throw new AppError('Parceiro inválido.', 422);
-      }
-      clientData.partner_id = partner_id;
-    } else {
-      // Se enviou null ou "", define como null para remover do banco
-      clientData.partner_id = null;
+  // Lista de campos permitidos para update
+  // Campos que NUNCA podem ser alterados
+  const blockedFields = ['cnpj', 'corporate_name', 'email'];
+
+  // Remove campos bloqueados
+  const clientData = {};
+
+  for (const key of Object.keys(data)) {
+    if (!blockedFields.includes(key)) {
+      clientData[key] = data[key];
     }
   }
-} else if (partner_id !== undefined) {
-  // Se o campo partner_id está presente mas não é para ser editado, lança erro
-  throw new AppError('Você não tem permissão para alterar o parceiro deste cliente.', 403);
-}
+  const uploadedPublicIds = [];
+  const oldPublicIdsToDelete = [];
+  const { partner_id, bankAccount } = data || {}; 
+
+  if (data && Object.prototype.hasOwnProperty.call(data, 'partner_id')) {
+    // Verifica permissão
+    if (requester.role === 'admin' || (requester.role === 'user' && client.created_by === requester.id)) {
+
+      if (partner_id) {
+        // Se enviou um ID, valida se o parceiro existe
+        const partner = await User.findByPk(partner_id);
+        if (!partner || partner.role !== 'partner') {
+          throw new AppError('Parceiro inválido.', 422);
+        }
+        clientData.partner_id = partner_id;
+      } else {
+        // Se enviou null ou "", define como null para remover do banco
+        clientData.partner_id = null;
+      }
+    }
+  } else if (partner_id !== undefined) {
+    // Se o campo partner_id está presente mas não é para ser editado, lança erro
+    throw new AppError('Você não tem permissão para alterar o parceiro deste cliente.', 403);
+  }
 
   const t = await Client.sequelize.transaction();
 
   try {
-    console.log('DADOS PARA UPDATE NO BANCO:', clientData);
     await client.update(clientData, { transaction: t });
 
     if (bankAccount) {
@@ -231,7 +259,6 @@ const updateClient = async (id, requester, data, files = null) => {
 
     // Limpeza de arquivos antigos (fora da transação)
     for (const oldId of oldPublicIdsToDelete) {
-      console.log(`[DEBUG] Tentando remover arquivo antigo do Cloudinary: ${oldId}`);
       StorageService.deleteFromCloudinary(oldId).catch(e => console.error(`Erro ao remover imagem antiga: ${e}`));
     }
 
@@ -239,7 +266,7 @@ const updateClient = async (id, requester, data, files = null) => {
 
   } catch (error) {
     if (t) await t.rollback();
-    
+
     // Cleanup de uploads que deram certo mas a transação falhou
     for (const newId of uploadedPublicIds) {
       StorageService.deleteFromCloudinary(newId).catch(e => console.error(`Erro ao limpar upload falho: ${e}`));
@@ -250,13 +277,7 @@ const updateClient = async (id, requester, data, files = null) => {
 
 /**
  * Recalcula e persiste o overall_status do cliente com base nos status das ClientFlags.
- * Exportado para uso pelo SaleService após criar/atualizar/cancelar vendas.
- *
- * Regras (idênticas ao ClientFlagService._syncClientOverallStatus):
- *   - Todas aprovadas                       → 'approved'
- *   - Alguma em analysis ou alguma aprovada → 'analysis'
- *   - Demais casos                          → 'pending'
- *
+ * Exportado para uso pelo SaleService após criar/atualizar/cancelar vendas. 
  * @param {string} clientId
  * @param {object|null} transaction - Transação Sequelize ativa (opcional)
  * @returns {string} Novo status calculado
