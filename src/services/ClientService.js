@@ -22,7 +22,7 @@ const _defaultIncludes = () => [
 ];
 
 // ─── Verificações Auxiliares ──────────────────────────────────────────────────
-const _assertCanWrite = (client, requesterId) => {
+const _assertCanWrite = (client, requester) => {
   const { id, role } = requester;
   // Admin pode tudo
   if (role === ROLES.ADMIN) return;

@@ -7,7 +7,6 @@ const xss = require('xss-clean');
 const mongoSanitize = require('express-mongo-sanitize');
 const pinoHttp = require('pino-http');
 const swaggerUi = require('swagger-ui-express');
-const config = require('./config');
 const hpp = require('hpp');
 const basicAuth = require('express-basic-auth');
 
@@ -26,11 +25,46 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.set('trust proxy', 1);
+
+// Middlewares de Segurança e Performance
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+app.use(xss());
+app.use(mongoSanitize());
+app.use(hpp());
+app.use(cors({
+  origin: (incomingOrigin, callback) => {
+    const allowedList = (process.env.CORS_ORIGIN || 'http://localhost:3001')
+      .split(',')
+      .map(o => o.trim());
+
+    // Permite requisições sem origin (Postman, mobile apps, etc.)
+    if (!incomingOrigin) return callback(null, true);
+
+    if (allowedList.includes(incomingOrigin)) {
+      return callback(null, true);
+    }
+
+    logger.warn({
+      type: 'CORS_BLOCK',
+      origin: incomingOrigin,
+    });
+
+    return callback(null, false);
+  },
+  credentials: true,
+}));
+app.use(compression());
+app.use(pinoHttp({ logger }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true }));
 // Rate Limiting e Documentação
 app.use(defaultLimiter);
 const isSwaggerEnabled = process.env.SWAGGER_ENABLED === 'true';
 
-if (isSwaggerEnabled) {
+if (isSwaggerEnabled && process.env.SWAGGER_PASSWORD) {
   app.use(
     '/api-docs',
     basicAuth({
@@ -44,42 +78,12 @@ if (isSwaggerEnabled) {
   );
 }
 
-// Middlewares de Segurança e Performance
-app.set('trust proxy', 1);
-app.use(helmet());
-app.use(xss());
-app.use(mongoSanitize());
-app.use(hpp());
-app.use(cors({
-  origin: (incomingOrigin, callback) => {
-    // Permite ferramentas sem origin (Postman, curl, health checks)
-    if (!incomingOrigin) return callback(null, true);
-
-    // Lê a variável de ambiente e separa por vírgula
-    const allowedList = (process.env.CORS_ORIGIN || 'http://localhost:3001')
-      .split(',')
-      .map(o => o.trim())
-      .filter(Boolean);
-
-    if (allowedList.includes(incomingOrigin)) {
-      callback(null, incomingOrigin); // espelha a origem — necessário com credentials: true
-    } else {
-      callback(new Error(`CORS bloqueado para origem: ${incomingOrigin}`));
-    }
-  },
-  credentials: true,
-}));
-app.use(compression());
-app.use(pinoHttp({ logger }));
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true }));
-
 // Rotas da API
 app.use('/api/v1', routes);
 
 // Tratamento de Erros (Sempre por último)
 app.use((req, res) => {
-  res.status(404).json({ status: 'fail', message: 'Rota não encontrada.' });
+  res.status(404).json({ status: 'fail', message: `Rota ${req.originalUrl} não encontrada.` });
 });
 
 app.use(errorHandler);

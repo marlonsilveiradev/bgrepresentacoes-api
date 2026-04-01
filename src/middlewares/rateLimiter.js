@@ -2,44 +2,54 @@ const rateLimit = require('express-rate-limit');
 const appConfig = require('../config/config');
 const logger = require('../config/logger');
 
+// 🌍 Limite global
 const defaultLimiter = rateLimit({
   windowMs: appConfig.rateLimit.windowMs,
   max: appConfig.rateLimit.max,
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: false,
+
   handler: (req, res, next, options) => {
-    logger.error({
+    logger.warn({
       type: 'RATE_LIMIT_BLOCK',
-      message: 'Excesso de requisições globais',
       ip: req.ip,
-      path: req.path,
+      path: req.originalUrl,
       method: req.method
     });
 
-    res.status(options.statusCode).json({ 
-      error: 'Muitas requisições. Tente novamente mais tarde.' 
+    return res.status(options.statusCode).json({
+      status: 'fail',
+      message: 'Muitas requisições. Tente novamente mais tarde.'
     });
   },
 });
 
+// 🔐 Limite para login (CRÍTICO)
 const authLimiter = rateLimit({
-  windowMs: appConfig.rateLimit.windowMs,
-  max: appConfig.rateLimit.authMax,
+  windowMs: 15 * 60 * 1000, // 🔒 15 minutos
+  max: appConfig.rateLimit.authMax, // ex: 5 tentativas
   standardHeaders: true,
   legacyHeaders: false,
+
+  skipSuccessfulRequests: true, // ✅ não conta login correto
+
+  keyGenerator: (req) => {
+    // 🔒 Combina IP + email para evitar bloqueios injustos
+    return `${req.ip}_${req.body?.email || 'unknown'}`;
+  },
+
   handler: (req, res, next, options) => {
-    // Este log específico disparará o e-mail de "Aviso de Segurança"
     logger.error({
       type: 'SECURITY_AUTH_BLOCK',
-      message: 'Bloqueio por múltiplas tentativas de login. Tente novamente em 15 minutos',
+      message: 'Bloqueio por múltiplas tentativas de login',
       ip: req.ip,
-      path: req.path,
+      path: req.originalUrl,
       userAgent: req.get('User-Agent')
     });
 
-    res.status(options.statusCode).json({ 
-      error: 'Muitas tentativas de autenticação. Tente novamente mais tarde.' 
+    return res.status(options.statusCode).json({
+      status: 'fail',
+      message: 'Muitas tentativas de autenticação. Tente novamente em alguns minutos.'
     });
   },
 });
