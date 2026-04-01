@@ -1,0 +1,47 @@
+const express = require('express');
+const router = express.Router();
+const OnboardingController = require('../../http/controllers/OnboardingController');
+const { authMiddleware, authorize } = require('../../http/middlewares/authMiddleware');
+const { onboardingUpload } = require('../../http/middlewares/uploadMiddleware');
+
+
+
+/**
+ * @swagger
+ * tags:
+ *   name: Onboarding
+ *   description: Processo de cadastro unificado de cliente (Onboarding)
+ */
+
+/**
+ * @swagger
+ * /onboarding:
+ *   post:
+ *     summary: Inicia o processo de cadastro unificado de cliente (Onboarding)
+ *     tags: [Onboarding]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               client_data:
+ *                 type: string
+ *               bank_account_data:
+ *                 type: string
+ *                 description: JSON string contendo os dados da conta bancária
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *     responses:
+ *       200:
+ *         description: Onboarding iniciado com sucesso
+ */
+router.post('/', authMiddleware, authorize('admin', 'user'), onboardingUpload, OnboardingController.start);
+
+module.exports = router;

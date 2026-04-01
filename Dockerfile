@@ -20,4 +20,4 @@ RUN npm ci --omit=dev
 COPY . .
 # Rodar como usuário node (segurança)
 USER node
-CMD ["node", "src/server.js"]
+CMD ["node", "server.js"]
