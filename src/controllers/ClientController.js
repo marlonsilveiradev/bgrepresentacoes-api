@@ -1,26 +1,24 @@
 const ClientService = require('../services/ClientService');
 const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/AppError');
 
 // GET /api/v1/clients
 const list = catchAsync(async (req, res, next) => {
-  const { page, limit, overall_status, benefit_type, partner_id, search } = req.query;
-
+  const { page = 1, limit = 20, overall_status, benefit_type, partner_id, search } = req.query;
   const result = await ClientService.listClients(req.user, {
-    page:           page  ? Number.parseInt(page, 10)  : 1,
-    limit:          limit ? Number.parseInt(limit, 10) : 20,
-    overall_status,
-    benefit_type,
-    partner_id,
-    search,
-  });
-
+  page,
+  limit,
+  overall_status,
+  benefit_type,
+  partner_id,
+  search,
+});
   // --- Filtragem de segurança para a lista de clientes ---
   let rows = result.rows.map(client => {
   // 1. Força a virar um objeto JS puro e simples
   const data = client.get({ plain: true });
 
-  if (req.user.role === 'partner') {
-    
+  if (req.user.role === 'partner') {    
     return {
       id: data.id,
       protocol: data.protocol,
@@ -52,17 +50,14 @@ const list = catchAsync(async (req, res, next) => {
 });
 
 // GET /api/v1/clients/:id
-const getById = catchAsync(async (req, res, next) => {
+const getById = catchAsync(async (req, res) => {
   // 1. Busca o cliente no Service
   const client = await ClientService.getClientById(req.params.id, req.user);
   
   // 2. VERIFICAÇÃO CRÍTICA: Se não houver cliente, retorna 404 imediatamente
   if (!client) {
-    return res.status(404).json({ 
-      status: 'error', 
-      message: 'Cliente não encontrado ou você não tem permissão para visualizá-lo.' 
-    });
-  }
+  throw new AppError('Cliente não encontrado ou acesso negado.', 404);
+}
 
   // 3. Converte para objeto simples de forma segura
   // O método .get({ plain: true }) é o mais estável do Sequelize para isso
@@ -72,9 +67,7 @@ const getById = catchAsync(async (req, res, next) => {
   let responseData;
   if (req.user.role === 'partner') {
     // --- Extrair o nome do plano da primeira venda encontrada (se existir) ---
-  const planName = data.sales && data.sales.length > 0 
-      ? data.sales[0].plan_name 
-      : 'Nenhum plano encontrado';
+  const planName = data.sales?.[0]?.plan_name || 'Nenhum plano encontrado';
     // RECONSTRUÇÃO TOTAL: Apenas estes campos sairão no JSON do Parceiro
     responseData = {
       id:                 data.id,
@@ -108,7 +101,7 @@ const getById = catchAsync(async (req, res, next) => {
       })) : []      
     };
   } else {
-    // Se for Admin ou User, envia o objeto completo (ou aplique outra trava se desejar)
+    // Se for Admin ou User, envia o objeto completo
     responseData = data;
   }
   
@@ -123,17 +116,7 @@ const getById = catchAsync(async (req, res, next) => {
 
 // PATCH /api/v1/clients/:id
 const updateClient = catchAsync(async (req, res) => {
-  // 1. Log para depuração (já confirmamos que req.files é um objeto nos logs anteriores)
-  console.log('Arquivos recebidos no Controller:', req.files);
-  console.log('Dados recebidos (já parseados):', req.body);
-
-  // 2. Se o parseMultipartBody já rodou, o req.body já é o objeto final.
-  // Se não, mantemos sua lógica de segurança abaixo:
-  let updateData = req.body;
-  if (req.body.data && typeof req.body.data === 'string') {
-    updateData = JSON.parse(req.body.data);
-  }
-
+  const updateData = req.body;
   // 3. ORGANIZAÇÃO CORRETA: req.files é um objeto { campo: [arquivo] }
   // Vamos passar o objeto inteiro para o Service, ele saberá o que fazer.
   const organizedFiles = req.files && Object.keys(req.files).length > 0 
