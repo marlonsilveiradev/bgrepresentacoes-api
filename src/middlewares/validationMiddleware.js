@@ -1,4 +1,5 @@
 const yup = require('yup');
+const AppError = require('../utils/AppError');
 
 /**
  * Middleware de validação com Yup.
@@ -26,14 +27,13 @@ const validate = (schema, source = 'body') => {
     } catch (err) {
       if (err instanceof yup.ValidationError) {
         const errors = err.inner.map((e) => ({
-          field:   e.path,
+          field: e.path,
           message: e.message,
         }));
 
-        return res.status(422).json({
-          error:   'Dados inválidos.',
-          details: errors,
-        });
+        return next(
+          new AppError('Dados inválidos.', 422, true, errors)
+        );
       }
 
       return next(err);

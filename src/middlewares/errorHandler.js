@@ -1,13 +1,14 @@
 const logger = require('../config/logger');
 
 const errorHandler = (err, req, res, next) => {
-  // 🔒 1. AppError (ERROS CONTROLADOS)
+  // 1. AppError (ERROS CONTROLADOS)
   if (err.name === 'AppError') {
-    return res.status(err.statusCode).json({
-      status: 'fail',
-      message: err.message,
-    });
-  }
+  return res.status(err.statusCode).json({
+    status: 'fail',
+    message: err.message,
+    ...(err.details && { details: err.details }),
+  });
+}
 
   let statusCode = 500;
   let message = 'Erro interno do servidor';
@@ -69,15 +70,16 @@ const errorHandler = (err, req, res, next) => {
     isOperational = true;
   }
 
-  // 🔒 2. ERROS OPERACIONAIS
+  // 2. ERROS OPERACIONAIS
   if (isOperational) {
-    return res.status(statusCode).json({
-      status: 'fail',
-      message,
-    });
-  }
+  return res.status(statusCode).json({
+    status: 'fail',
+    message,
+    ...(err.details && { details: err.details }),
+  });
+}
 
-  // 🔥 3. ERRO REAL (BUG)
+  // 3. ERRO REAL (BUG)
   logger.error({
     name: err.name,
     message: err.message,

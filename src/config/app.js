@@ -51,8 +51,7 @@ app.use(cors({
       type: 'CORS_BLOCK',
       origin: incomingOrigin,
     });
-
-    return callback(null, false);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
 }));

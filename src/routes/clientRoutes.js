@@ -1,8 +1,12 @@
 const { Router } = require('express');
+const yup = require('yup');
 const ClientController = require('../controllers/ClientController');
 const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
+const { defaultLimiter } = require('../middlewares/rateLimiter');
+const parseMultipartBody = require('../middlewares/parseMultipartBody');
 const { validate } = require('../middlewares/validationMiddleware');
 const { clientUpdateUpload } = require('../middlewares/uploadMiddleware');
+const AppError = require('../utils/AppError');
 const {
   updateClientSchema,
   clientIdParamSchema,
@@ -12,31 +16,6 @@ const {
 const router = Router();
 
 /**
- * Middleware que normaliza o body do PATCH quando vem como multipart/form-data.
- * Solução: parsear req.body.data para req.body ANTES da validação rodar.
- * Se não vier campo 'data' (requisição JSON normal), não faz nada.
- */
-const parseMultipartBody = (req, res, next) => {
-  // Se o corpo estiver vazio, prossegue para o validador (que dará erro 422 se necessário)
-  if (!req.body) return next();
-
-  // Caso A: multipart/form-data (o Multer coloca os campos em req.body.data como string)
-  if (typeof req.body.data === 'string') {
-    try {
-      req.body = JSON.parse(req.body.data.trim());
-    } catch (err) {
-      return res.status(400).json({ error: 'O campo "data" deve ser um JSON válido.' });
-    }
-  } 
-  
-  // Caso B: Já é um JSON (application/json)
-  // Se req.body já for um objeto e não tiver o campo .data, não fazemos nada, 
-  // apenas deixamos passar para o validate(updateClientSchema).
-
-  return next();
-};
-
-/**
  * @swagger
  * tags:
  *   name: Clients
@@ -44,7 +23,10 @@ const parseMultipartBody = (req, res, next) => {
  */
 
 // Rota Pública — sem token
-router.get('/public/track/:protocol', ClientController.trackByProtocol);
+const protocolParamSchema = yup.object({
+  protocol: yup.string().required(),
+});
+router.get('/public/track/:protocol', defaultLimiter, validate(protocolParamSchema, 'params'), ClientController.trackByProtocol);
 
 // Autenticação obrigatória a partir daqui
 router.use(authMiddleware);
@@ -139,9 +121,9 @@ router.get(
 router.patch(
   '/:id',
   authorize('admin', 'user'),
+  validate(clientIdParamSchema, 'params'),
   clientUpdateUpload,
   parseMultipartBody,
-  validate(clientIdParamSchema, 'params'),
   validate(updateClientSchema),
   ClientController.updateClient
 );
