@@ -1,6 +1,24 @@
-// 
-
 require('dotenv').config();
+
+// Função auxiliar para construir as opções SSL
+function getDialectOptions() {
+  // Se não houver DATABASE_URL, não usa SSL (ambiente local)
+  if (!process.env.DATABASE_URL) return {};
+
+  const sslOptions = {
+    require: true,
+    rejectUnauthorized: true,  // agora com validação
+  };
+
+  // Se houver uma variável DB_CA_CERT (conteúdo do certificado), adiciona
+  if (process.env.DB_CA_CERT) {
+    sslOptions.ca = process.env.DB_CA_CERT;
+  }
+
+  return {
+    ssl: sslOptions,
+  };
+}
 
 const dbConfig = {
   // Prioriza a URL completa (Railway/VPS), senão monta com as variáveis (Docker)
@@ -18,12 +36,7 @@ const dbConfig = {
     underscoredAll: true,
   },
   // Configuração crucial para Railway/VPS:
-  dialectOptions: process.env.DATABASE_URL ? {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false
-    }
-  } : {},
+  dialectOptions: getDialectOptions(),
 };
 
 module.exports = {

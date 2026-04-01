@@ -1,19 +1,57 @@
 const multer = require('multer');
 const path = require('path');
+const { fileTypeFromBuffer } = require('file-type');
 const config = require('../../../infrastructure/config/config');
-const logger = require('../../../infrastructure/config/logger'); // ← corrigido
-
+const logger = require('../../../infrastructure/config/logger');
 const storage = multer.memoryStorage();
 
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
-  const ext = path.extname(file.originalname).toLowerCase();
+const fileFilter = async (req, file, cb) => {
+  try {
+    // 1. Verifica extensão e MIME rápido (primeiro filtro)
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!allowedExtensions.includes(ext)) {
+      return cb(new Error('Extensão de arquivo não permitida.'), false);
+    }
 
-  if (!allowedTypes.includes(file.mimetype) || !allowedExtensions.includes(ext)) {
-    return cb(new Error('Tipo de arquivo não permitido.'), false);
+    // 2. Verifica o conteúdo real (magic bytes)
+    const type = await fileTypeFromBuffer(file.buffer);
+    if (!type) {
+      return cb(new Error('Não foi possível identificar o tipo do arquivo.'), false);
+    }
+
+    // 3. MIME types permitidos (após identificação real)
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowedMimes.includes(type.mime)) {
+      return cb(new Error(`Tipo de arquivo real não permitido (${type.mime}).`), false);
+    }
+
+    // 4. Opcional: verificar consistência entre extensão e tipo real
+    const extToMime = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+      '.pdf': 'application/pdf'
+    };
+    if (extToMime[ext] !== type.mime) {
+      return cb(new Error(`Arquivo com extensão ${ext} mas tipo real ${type.mime}. Rejeitado.`), false);
+    }
+
+    // Tudo OK
+    cb(null, true);
+  } catch (error) {
+    // Se ocorrer qualquer erro na validação, rejeita o arquivo
+    logger.warn({
+      type: 'UPLOAD_REJECTED',
+      filename: file.originalname,
+      ext,
+      realMime: type.mime,
+      ip: req.ip,
+      user: req.user?.id || 'anonymous'
+    }, 'Arquivo rejeitado por inconsistência de tipo.');
+    cb(new Error('Erro ao validar arquivo.'), false);
   }
-  cb(null, true);
 };
 
 const upload = multer({
@@ -69,8 +107,8 @@ const clientUpdateUpload = (req, res, next) => {
     if (err) {
       logger.error({ err }, 'Erro no upload de arquivo durante update.');
       if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-        return res.status(400).json({ 
-          error: `Campo de arquivo inválido: ${err.field}. Use as chaves: contrato, proof_of_address, bank_account_proof ou card_machine_proof.` 
+        return res.status(400).json({
+          error: `Campo de arquivo inválido: ${err.field}. Use as chaves: contrato, proof_of_address, bank_account_proof ou card_machine_proof.`
         });
       }
       return next(err);
