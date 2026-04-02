@@ -17,10 +17,10 @@ const STRONG_PASSWORD_MESSAGE =
 const loginSchema = yup.object({
   email: yup
     .string()
-    .required('E-mail é obrigatório.')
+    .trim()
     .email('Informe um e-mail válido.')
-    .lowercase()
-    .trim(),
+    .required('E-mail é obrigatório.')
+    .transform((value) => (value ? value.toLowerCase() : value)),
   password: yup
     .string()
     .required('Senha é obrigatória.'),

@@ -1,5 +1,5 @@
 const AuthService = require('../../../infrastructure/services/AuthService');
-const refreshTokenService = require('../../../application/services/RefreshTokenService');
+const refreshTokenService = require('../../../infrastructure/services/RefreshTokenService');
 const catchAsync = require('../../../shared/utils/catchAsync');
 
 /**

@@ -13,6 +13,7 @@ const AppError = require('../../../shared/utils/AppError');
 const validate = (schema, source = 'body') => {
   return async (req, res, next) => {
     try {
+      console.log('SOURCE:', source, 'DATA:', req[source]);
       // abortEarly: false → retorna TODOS os erros, não só o primeiro
       // stripUnknown: true → remove campos não declarados no schema
       const validated = await schema.validate(req[source], {
@@ -32,7 +33,7 @@ const validate = (schema, source = 'body') => {
         }));
 
         return next(
-          new AppError('Dados inválidos.', 422, true, errors)
+          new AppError('Dados inválidos.', 422, errors)
         );
       }
 
