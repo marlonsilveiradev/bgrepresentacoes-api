@@ -205,6 +205,15 @@ const reactivateUser = async (targetId, requesterId) => {
   return { message: `Usuário "${user.name}" reativado com sucesso.` };
 };
 
+const getProfile = async (userId) => {
+  const user = await getUserById(userId);
+  return {
+    ...user.toJSON(),
+    mustChangePassword: user.last_login_at === null,
+  };
+};
+
+
 module.exports = {
   listUsers,
   getUserById,
@@ -213,4 +222,5 @@ module.exports = {
   updateProfile,
   deactivateUser,
   reactivateUser,
+  getProfile,
 };

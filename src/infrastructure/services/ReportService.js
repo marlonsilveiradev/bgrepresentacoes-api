@@ -58,24 +58,52 @@ const _buildDateRange = ({ year, month, day, date_start, date_end }) => {
  * @param {object} filters    - { year, month, day, date_start, date_end, partner_id, overall_status }
  * @param {object} pagination - { page, limit }
  */
-const getSalesReport = async (filters = {}, pagination = {}) => {
+// ─── Relatório principal ──────────────────────────────────────────────────────
+const getSalesReport = async (queryParams) => {
+  // Extrai todos os parâmetros da query (vêm do controller)
   const {
     year, month, day,
     date_start, date_end,
     partner_id,
     overall_status,
+    page = 1,
+    limit = 20,
+  } = queryParams;
+
+  // Converte os valores (a lógica que antes estava no controller agora fica aqui)
+  const filters = {
+    year: year ? Number.parseInt(year, 10) : undefined,
+    month: month ? Number.parseInt(month, 10) : undefined,
+    day: day ? Number.parseInt(day, 10) : undefined,
+    date_start: date_start || undefined,
+    date_end: date_end || undefined,
+    partner_id: partner_id || undefined,
+    overall_status: overall_status || undefined,
+  };
+
+  const pagination = {
+    page: Number.parseInt(page, 10),
+    limit: Number.parseInt(limit, 10),
+  };
+
+  // Desestrutura os objetos filtrados
+  const {
+    year: yr, month: mo, day: dy,
+    date_start: ds, date_end: de,
+    partner_id: pid,
+    overall_status: os,
   } = filters;
 
-  const { page = 1, limit = 20 } = pagination;
-  const offset = (page - 1) * limit;
+  const { page: pg, limit: lm } = pagination;
+  const offset = (pg - 1) * lm;
 
   // 1. Intervalo de datas
-  const dateRange = _buildDateRange({ year, month, day, date_start, date_end });
+  const dateRange = _buildDateRange({ year: yr, month: mo, day: dy, date_start: ds, date_end: de });
 
   // 2. Filtros do Client
   const clientWhere = {};
-  if (partner_id)     clientWhere.partner_id    = partner_id;
-  if (overall_status) clientWhere.overall_status = overall_status;
+  if (pid) clientWhere.partner_id = pid;
+  if (os) clientWhere.overall_status = os;
 
   // 3. Filtro das Sales (data aplicada aqui)
   const saleWhere = {};
@@ -92,7 +120,7 @@ const getSalesReport = async (filters = {}, pagination = {}) => {
         model:    Sale,
         as:       'sales',
         where:    saleWhere,
-        required: true,             // INNER JOIN — só clientes com vendas no período
+        required: true,
         attributes: [
           'id', 'total_value', 'status', 'plan_name', 'plan_price',
           'sold_by', 'created_at', 'approved_at',
@@ -124,44 +152,39 @@ const getSalesReport = async (filters = {}, pagination = {}) => {
       },
     ],
     order:    [['created_at', 'DESC']],
-    limit,
-    offset,
-    distinct: true,   // evita count inflado pelo JOIN com sales
-    subQuery: false,  // necessário para ORDER BY funcionar com LIMIT + associations
+    limit:    lm,
+    offset:   offset,
+    distinct: true,
+    subQuery: false,
   });
 
-  // ── Formata as linhas ───────────────────────────────────────────────────────
+  // ── Formata as linhas (sem alterações) ─────────────────────────────────────
   const rows = clients.map((client) => {
-    const c     = client.toJSON();
+    const c = client.toJSON();
     const sales = c.sales || [];
 
-    const totalValue  = sales.reduce((sum, s) => sum + Number.parseFloat(s.total_value || 0), 0);
-    const salesCount  = sales.length;
-    const latestSale  = [...sales].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+    const totalValue = sales.reduce((sum, s) => sum + Number.parseFloat(s.total_value || 0), 0);
+    const salesCount = sales.length;
+    const latestSale = [...sales].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
 
     return {
-      // Dados do cliente
       client_id:      c.id,
       corporate_name: c.corporate_name,
       overall_status: c.overall_status,
       registered_at:  c.created_at,
 
-      // Parceiro responsável
       partner: c.partner
         ? { id: c.partner.id, name: c.partner.name, email: c.partner.email }
         : null,
 
-      // Resumo financeiro do cliente no período
       sales_count:   salesCount,
       total_value:   Number.parseFloat(totalValue.toFixed(2)),
       average_ticket: salesCount > 0
         ? Number.parseFloat((totalValue / salesCount).toFixed(2))
         : 0,
 
-      // Plano da venda mais recente (referência rápida)
       latest_plan: latestSale?.plan?.name || latestSale?.plan_name || null,
 
-      // Detalhe completo das vendas — estrutura pronta para PDF/tabela
       sales: sales.map((s) => ({
         sale_id:     s.id,
         status:      s.status,
@@ -179,7 +202,7 @@ const getSalesReport = async (filters = {}, pagination = {}) => {
     };
   });
 
-  // ── Consulta de summary (todos os registros do filtro, ignora paginação) ────
+  // ── Consulta de summary ────────────────────────────────────────────────────
   const summaryResult = await Sale.findAll({
     where: saleWhere,
     include: [
@@ -206,19 +229,19 @@ const getSalesReport = async (filters = {}, pagination = {}) => {
     average_ticket: Number.parseFloat(Number.parseFloat(summaryResult[0]?.avg_value   || 0).toFixed(2)),
   };
 
-  // ── Meta — facilita geração de cabeçalho no PDF ───────────────────────────
+  // ── Meta ──────────────────────────────────────────────────────────────────
   const meta = {
     generated_at:   new Date().toISOString(),
     filters_applied: {
       ...(dateRange   && { period_start: dateRange.start, period_end: dateRange.end }),
-      ...(partner_id  && { partner_id }),
-      ...(overall_status && { overall_status }),
+      ...(pid  && { partner_id: pid }),
+      ...(os && { overall_status: os }),
     },
-    period_label: _buildPeriodLabel({ year, month, day, date_start, date_end }),
+    period_label: _buildPeriodLabel({ year: yr, month: mo, day: dy, date_start: ds, date_end: de }),
   };
 
   logger.info(
-    { filters, summary, page, limit },
+    { filters: queryParams, summary, page: pg, limit: lm },
     'Relatório de vendas gerado.'
   );
 
@@ -227,9 +250,9 @@ const getSalesReport = async (filters = {}, pagination = {}) => {
     rows,
     pagination: {
       total:       count,
-      totalPages:  Math.ceil(count / limit),
-      currentPage: page,
-      perPage:     limit,
+      totalPages:  Math.ceil(count / lm),
+      currentPage: pg,
+      perPage:     lm,
     },
     summary,
   };

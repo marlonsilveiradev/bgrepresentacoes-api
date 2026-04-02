@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const OnboardingController = require('../../http/controllers/OnboardingController');
 const { authMiddleware, authorize } = require('../../http/middlewares/authMiddleware');
+const parseMultipartBody = require('../../http/middlewares/parseMultipartBody');
 const { onboardingUpload } = require('../../http/middlewares/uploadMiddleware');
 
 
@@ -42,6 +43,6 @@ const { onboardingUpload } = require('../../http/middlewares/uploadMiddleware');
  *       200:
  *         description: Onboarding iniciado com sucesso
  */
-router.post('/', authMiddleware, authorize('admin', 'user'), onboardingUpload, OnboardingController.start);
+router.post('/', authMiddleware, authorize('admin', 'user'), parseMultipartBody, onboardingUpload, OnboardingController.start);
 
 module.exports = router;

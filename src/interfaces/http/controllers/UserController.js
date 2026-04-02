@@ -57,20 +57,10 @@ const reactivate = catchAsync(async (req, res, next) => {
   return res.status(200).json({ status: 'success', ...result });
 });
 
-const getProfile = catchAsync(async (req, res, next) => {
-  const user = await UserService.getUserById(req.user.id);
-
-  // 🔥 REGRA CENTRAL DO SEU SISTEMA
-  const mustChangePassword = user.last_login_at === null;
-
-  return res.status(200).json({
-    status: 'success',
-    data: {
-      ...user.toJSON(),
-      mustChangePassword, 
-    },
-  });
-});
+const getProfile = catchAsync(async (req, res) => {
+  const profile = await UserService.getProfile(req.user.id);
+  return res.status(200).json({ status: 'success', data: profile });
+})
 
 const updateProfile = catchAsync(async (req, res, next) => {
   const user = await UserService.updateProfile(req.user.id, req.body);
