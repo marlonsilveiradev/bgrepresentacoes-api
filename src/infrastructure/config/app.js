@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const cors = require('cors');
 const compression = require('compression');
 const xss = require('xss-clean');
-const mongoSanitize = require('express-mongo-sanitize');
 const pinoHttp = require('pino-http');
 const swaggerUi = require('swagger-ui-express');
 const hpp = require('hpp');
@@ -32,7 +31,6 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(xss());
-app.use(mongoSanitize());
 app.use(hpp());
 app.use(cors({
   origin: (incomingOrigin, callback) => {

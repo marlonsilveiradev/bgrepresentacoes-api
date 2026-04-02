@@ -1,7 +1,6 @@
 const AuthService = require('../../../infrastructure/services/AuthService');
+const refreshTokenService = require('../../../application/services/RefreshTokenService');
 const catchAsync = require('../../../shared/utils/catchAsync');
-const { RefreshToken } = require('../../../infrastructure/repositories/models');
-const { hashToken } = require('../../../shared/utils/tokenHash');
 
 /**
  * Controller de Autenticação.
@@ -30,7 +29,7 @@ const changePassword = catchAsync(async (req, res) => {
 
   return res.status(200).json({
     status: 'success',
-    data: result
+    data: result,
   });
 });
 
@@ -52,12 +51,7 @@ const logout = catchAsync(async (req, res) => {
   const { refreshToken } = req.body;
 
   if (refreshToken) {
-    const hashed = hashToken(refreshToken);
-
-    await RefreshToken.update(
-      { revoked: true },
-      { where: { token_hash: hashed } }
-    );
+    await refreshTokenService.revokeByToken(refreshToken);
   }
 
   return res.status(200).json({

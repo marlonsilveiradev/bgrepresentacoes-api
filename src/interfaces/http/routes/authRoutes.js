@@ -121,7 +121,7 @@ router.patch(
  *       401:
  *         description: Refresh token inválido ou expirado
  */
-router.post('/refresh', validate(refreshSchema), AuthController.refresh);
+router.post('/refresh', authLimiter, validate(refreshSchema), AuthController.refresh);
 
 /**
  * @swagger
