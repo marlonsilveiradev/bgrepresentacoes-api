@@ -148,7 +148,7 @@ const onboardingSchema = yup.object().shape({
   partner_id: yup
     .string()
     .uuid('Parceiro inválido')
-    .required('Parceiro obrigatório'),
+    .nullable(),
 
 })
 .test(

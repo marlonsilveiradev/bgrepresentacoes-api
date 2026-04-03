@@ -1,7 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const AppError = require('../../../shared/utils/AppError');
-const { fileTypeFromBuffer } = require('file-type');
+const fileType = require('file-type');
 const logger = require('../../../infrastructure/config/logger');
 
 const storage = multer.memoryStorage();
@@ -59,7 +59,7 @@ const validateFiles = async (files, req) => {
     const ext = path.extname(file.originalname).toLowerCase();
 
     // 1. Detecta tipo real
-    const type = await fileTypeFromBuffer(file.buffer);
+    const type = await fileType.fromBuffer(file.buffer);
 
     if (!type) {
       throw new AppError(

@@ -7,8 +7,6 @@
 
 'use strict';
 
-const { logger } = require("sequelize/lib/utils/logger");
-
 const JWT_MIN_LENGTH = 32;
 
 function validateEnv() {
