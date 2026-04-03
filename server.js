@@ -43,7 +43,8 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT',  () => shutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
-  logger.fatal({ err }, 'uncaughtException — encerrando processo.');
+  logger.fatal({ reason: String(reason), stack: reason?.stack }, 'unhandledRejection — encerrando processo.');
+  console.error('UNHANDLED REJECTION:', reason);
   process.exit(1);
 });
 

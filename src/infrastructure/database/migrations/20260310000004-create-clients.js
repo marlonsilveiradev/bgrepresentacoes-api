@@ -48,20 +48,20 @@ module.exports = {
       },
       phone: {
         type: Sequelize.STRING(20),
-        allowNull: true,
+        allowNull: false,
       },
       email: {
         type: Sequelize.STRING(255),
-        allowNull: true,
+        allowNull: false,
         unique: true,
       },
       address_street: {
         type: Sequelize.STRING(255),
-        allowNull: true,
+        allowNull: false,
       },
       address_number: {
         type: Sequelize.STRING(10),
-        allowNull: true,
+        allowNull: false,
       },
       address_complement: {
         type: Sequelize.STRING(100),
@@ -73,15 +73,15 @@ module.exports = {
       },
       address_city: {
         type: Sequelize.STRING(100),
-        allowNull: true,
+        allowNull: false,
       },
       address_state: {
         type: Sequelize.STRING(2),
-        allowNull: true,
+        allowNull: false,
       },
       address_zip: {
         type: Sequelize.STRING(9),
-        allowNull: true,
+        allowNull: false,
       },
       overall_status: {
         type: Sequelize.ENUM('pending', 'analysis', 'approved'),

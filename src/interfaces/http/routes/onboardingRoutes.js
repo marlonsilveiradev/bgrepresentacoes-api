@@ -4,6 +4,9 @@ const OnboardingController = require('../../http/controllers/OnboardingControlle
 const { authMiddleware, authorize } = require('../../http/middlewares/authMiddleware');
 const parseMultipartBody = require('../../http/middlewares/parseMultipartBody');
 const { onboardingUpload } = require('../../http/middlewares/uploadMiddleware');
+const { onboardingSchema } = require('../validators/onboardingValidator');
+const { validate } = require('../middlewares/validationMiddleware');
+const { validateFiles } = require('../middlewares/upload/fileValidationMiddleware')
 
 
 
@@ -43,6 +46,14 @@ const { onboardingUpload } = require('../../http/middlewares/uploadMiddleware');
  *       200:
  *         description: Onboarding iniciado com sucesso
  */
-router.post('/', authMiddleware, authorize('admin', 'user'), parseMultipartBody, onboardingUpload, OnboardingController.start);
+router.post('/', authMiddleware, authorize('admin', 'user'),
+onboardingUpload, 
+parseMultipartBody, 
+validate(onboardingSchema, 'body'),
+validateFiles({
+    contrato: { required: false, max: 1 },
+    documentos: { required: false, max: 3 },
+  }),
+OnboardingController.start);
 
 module.exports = router;

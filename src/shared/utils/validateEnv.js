@@ -7,6 +7,9 @@
 
 'use strict';
 
+const { logger } = require("sequelize/lib/utils/logger");
+const logger = require('../../infrastructure/config/logger');
+
 const JWT_MIN_LENGTH = 32;
 
 function validateEnv() {
@@ -94,12 +97,12 @@ function validateEnv() {
 
   // ── 5. Encerra o servidor se houver qualquer erro ───────────────────────────
   if (errors.length > 0) {
-    console.error('\n========================================================');
-    console.error('  ERRO FATAL: Variáveis de ambiente inválidas ou ausentes');
-    console.error('========================================================');
-    errors.forEach((msg) => console.error(msg));
-    console.error('========================================================');
-    console.error('  O servidor foi encerrado. Corrija as variáveis e tente novamente.\n');
+    logger.error('\n========================================================');
+    logger.error('  ERRO FATAL: Variáveis de ambiente inválidas ou ausentes');
+    logger.error('========================================================');
+    errors.forEach((msg) => logger.error(msg));
+    logger.error('========================================================');
+    logger.error('  O servidor foi encerrado. Corrija as variáveis e tente novamente.\n');
     process.exit(1);
   }
 

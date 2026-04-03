@@ -13,7 +13,25 @@ const AppError = require('../../../shared/utils/AppError');
 const validate = (schema, source = 'body') => {
   return async (req, res, next) => {
     try {
-      console.log('SOURCE:', source, 'DATA:', req[source]);
+      // Normaliza strings vazias → null
+      const normalize = (obj) => {
+        if (!obj || typeof obj !== 'object') return obj;
+
+        const newObj = {};
+        for (const key in obj) {
+          const value = obj[key];
+
+          if (value === '') {
+            newObj[key] = null;
+          } else {
+            newObj[key] = value;
+          }
+        }
+        return newObj;
+      };
+
+      const data = normalize(req[source]);
+      
       // abortEarly: false → retorna TODOS os erros, não só o primeiro
       // stripUnknown: true → remove campos não declarados no schema
       const validated = await schema.validate(req[source], {

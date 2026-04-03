@@ -1,5 +1,6 @@
 const { ClientDocument } = require('../repositories/models');
 const StorageService = require('./StorageService');
+const logger = require('../../infrastructure/config/logger');
 
 const FIELD_MAP = {
   contrato: 'company_document',
@@ -12,13 +13,13 @@ const cleanupDocuments = async ({ uploadedPublicIds = [], oldPublicIdsToDelete =
   // Remove antigos (pós sucesso)
   for (const oldId of oldPublicIdsToDelete) {
     StorageService.deleteFromCloudinary(oldId)
-      .catch(e => console.error(`Erro ao remover imagem antiga: ${e}`));
+      .catch(e => logger.error(`Erro ao remover imagem antiga: ${e}`));
   }
 
   // Remove novos (rollback)
   for (const newId of uploadedPublicIds) {
     StorageService.deleteFromCloudinary(newId)
-      .catch(e => console.error(`Erro ao limpar upload falho: ${e}`));
+      .catch(e => logger.error(`Erro ao limpar upload falho: ${e}`));
   }
 };
 

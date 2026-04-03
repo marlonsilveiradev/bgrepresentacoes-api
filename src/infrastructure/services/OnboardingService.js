@@ -21,7 +21,6 @@ class OnboardingService {
       await this._associateFlags(sale.id, client.id, flags, t);
 
       const documents = await this._processDocuments(client.id, files, requester.id, uploadedPublicIds, t);
-
       return { client, bankAccount, sale, documents, flags };
     });
 
