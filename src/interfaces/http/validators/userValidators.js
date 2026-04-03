@@ -22,7 +22,7 @@ const createUserSchema = yup.object({
     .string()
     .required('Papel (role) é obrigatório.')
     .oneOf(['admin', 'user', 'partner'], 'Role inválido. Use: admin, user ou partner.'),
-});
+}).noUnknown(true).strict();
 
 // ─── Atualizar usuário (admin) ────────────────────────────────────────────────
 const updateUserSchema = yup.object({
@@ -63,7 +63,7 @@ const updateUserSchema = yup.object({
     const fields = Object.values(value).filter(v => v !== undefined);
     return fields.length > 0;
   }
-);
+).noUnknown(true, 'Campo adicionais não são permitidos.').strict();
 
 // ─── Atualizar perfil próprio (user / partner) ────────────────────────────────
 // Apenas 'name' é permitido. E-mail, role e is_active são bloqueados aqui

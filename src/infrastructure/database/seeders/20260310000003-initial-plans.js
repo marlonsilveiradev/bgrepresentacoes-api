@@ -20,15 +20,6 @@ module.exports = {
         is_active: true,
         created_at: new Date(),
         updated_at: new Date()
-      },
-      {
-        id: Sequelize.literal('gen_random_uuid()'),
-        name: 'Combo 7 Bandeiras',
-        description: 'Plano completo',
-        price: 399.9,
-        is_active: true,
-        created_at: new Date(),
-        updated_at: new Date()
       }
     ]);
   },

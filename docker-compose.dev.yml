@@ -18,14 +18,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # postgres_test:
-  #   image: postgres:16-alpine
-  #   container_name: bgrepresentacoes-test-db
-  #   restart: unless-stopped
-  #   env_file:
-  #     - .env
-  #   ports:
-  #     - '5433:5432'
+  postgres_test:
+    image: postgres:16-alpine
+    container_name: bgrepresentacoes-test-db
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - '5433:5432'
 
   api:
     build:

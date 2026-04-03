@@ -22,7 +22,7 @@ const options = {
     },
   },
   // Caminho para os arquivos onde estão as anotações @swagger
-  apis: ['./src/routes/*.js'], 
+  apis: ['./src/interfaces/http/routes/*.js'], 
 };
 
 const swaggerSpec = swaggerJSDoc(options);

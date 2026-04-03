@@ -3,7 +3,6 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const compression = require('compression');
-const xss = require('xss-clean');
 const pinoHttp = require('pino-http');
 const swaggerUi = require('swagger-ui-express');
 const hpp = require('hpp');
@@ -30,7 +29,6 @@ app.set('trust proxy', 1);
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(xss());
 app.use(hpp());
 app.use(cors({
   origin: (incomingOrigin, callback) => {

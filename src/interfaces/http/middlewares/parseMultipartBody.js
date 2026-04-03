@@ -1,5 +1,5 @@
 const AppError = require('../../../shared/utils/AppError');
-const logger = require('../../infrastructure/config/logger');
+const logger = require('../../../infrastructure/config/logger');
 
 const parseMultipartBody = (req, res, next) => {
   if (!req.body) return next();

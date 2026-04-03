@@ -31,10 +31,12 @@ const getById = catchAsync(async (req, res, next) => {
 
 const create = catchAsync(async (req, res, next) => {
   const user = await UserService.createUser(req.body);
+  const userResponse = user.get({ plain: true });
+  delete userResponse.password;
   return res.status(201).json({ 
     status: 'success',
     message: 'Usuário criado com sucesso.', 
-    data: user 
+    data: userResponse 
   });
 });
 
