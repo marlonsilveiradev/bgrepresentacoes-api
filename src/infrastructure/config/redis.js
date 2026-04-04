@@ -1,7 +1,12 @@
 const Redis = require('ioredis');
+const logger = require('./logger');
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const redis = new Redis(redisUrl);
+const redis = new Redis(redisUrl, {
+  lazyConnect: true,
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 1,
+});
 
 // Promessa que resolve quando o Redis estiver pronto
 const waitForRedis = () => {
@@ -17,10 +22,13 @@ const waitForRedis = () => {
 };
 
 redis.on('connect', () => {
-  console.log('[Redis] Conectado');
+  logger.info('[Redis] Conectado');
 });
 redis.on('error', (err) => {
-  console.error('[Redis] Erro:', err);
+  logger.error({ err }, '[Redis] Erro de conexão');
+});
+redis.on('close', () => {
+  logger.warn('[Redis] Conexão encerrada');
 });
 
 module.exports = { redis, waitForRedis };

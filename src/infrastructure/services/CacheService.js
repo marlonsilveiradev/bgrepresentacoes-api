@@ -1,30 +1,3 @@
-// const { redis } = require('../config/redis');
-
-// class CacheService {
-//   async get(key) {
-//     const data = await redis.get(key);
-//     return data ? JSON.parse(data) : null;
-//   }
-
-//   async set(key, value, ttlSeconds = 300) { // 5 minutos padrão
-//     await redis.set(key, JSON.stringify(value), 'EX', ttlSeconds);
-//   }
-
-//   async del(key) {
-//     await redis.del(key);
-//   }
-
-//   async clearPattern(pattern) {
-//     const keys = await redis.keys(pattern);
-//     if (keys.length) {
-//       await redis.del(keys);
-//     }
-//   }
-// }
-
-// module.exports = new CacheService();
-
-// src/infrastructure/services/CacheService.js
 const { redis } = require('../config/redis'); // USE DESESTRUTURAÇÃO {}
 const logger = require('../config/logger');
 

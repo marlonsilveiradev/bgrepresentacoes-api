@@ -3,6 +3,7 @@ require('dotenv').config();
 const validateEnv = require('./src/shared/utils/validateEnv');
 validateEnv();
 
+const { redis } = require('./src/infrastructure/config/redis');
 const logger = require('./src/infrastructure/config/logger');
 const app = require('./src/infrastructure/config/app');
 const config = require('./src/infrastructure/config/config');
@@ -32,6 +33,7 @@ const shutdown = async (signal) => {
   logger.info(`${signal} recebido. Encerrando servidor...`);
   server.close(async () => {
     await sequelize.close();
+    await redis.quit();
     logger.info('Servidor encerrado com sucesso.');
     process.exit(0);
   });
