@@ -5,7 +5,7 @@ const {
   cleanDatabase,
 } = require('../setup/testHelpers');
 
-describe('Sales API', () => {
+describe('Reports API', () => {
   let adminToken, userToken;
 
   beforeAll(async () => {
@@ -16,27 +16,27 @@ describe('Sales API', () => {
     userToken = user.token;
   });
 
-  describe('GET /api/v1/sales', () => {
+  describe('GET /api/v1/reports/sales', () => {
     it('requer autenticação', async () => {
-      const res = await request(app).get('/api/v1/sales');
+      const res = await request(app).get('/api/v1/reports/sales');
       expect(res.status).toBe(401);
     });
 
-    it('admin acessa listagem', async () => {
+    it('requer role admin (403 para user)', async () => {
       const res = await request(app)
-        .get('/api/v1/sales')
+        .get('/api/v1/reports/sales')
+        .set('Authorization', `Bearer ${userToken}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('admin acessa relatório', async () => {
+      const res = await request(app)
+        .get('/api/v1/reports/sales')
         .set('Authorization', `Bearer ${adminToken}`);
       expect(res.status).toBe(200);
-      expect(res.body.status).toBe('success');
-    });
-
-    it('vendedor acessa listagem', async () => {
-      const res = await request(app)
-        .get('/api/v1/sales')
-        .set('Authorization', `Bearer ${userToken}`);
-      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('meta');
+      expect(res.body).toHaveProperty('rows');
+      expect(res.body).toHaveProperty('summary');
     });
   });
-
-  // Adicione testes para POST, PATCH, cancel conforme necessário
 });
