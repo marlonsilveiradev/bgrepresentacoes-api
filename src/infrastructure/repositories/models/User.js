@@ -69,7 +69,7 @@ module.exports = (sequelize) => {
     {
       tableName: 'users',
       timestamps: true,
-      paranoid: true,        // ativa soft delete
+      paranoid: true,
       underscored: true,
       hooks: {
         beforeCreate: async (user) => {

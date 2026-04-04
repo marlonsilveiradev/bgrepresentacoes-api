@@ -19,9 +19,16 @@ module.exports = (sequelize) => {
         allowNull: false,
         references: { model: 'flags', key: 'id' },
       },
+      deleted_at: { 
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       tableName: 'plan_flags',
+      timestamps: true,
+      paranoid: true,
+      underscored: true,
       indexes: [{ unique: true, fields: ['plan_id', 'flag_id'] }],
     }
   );

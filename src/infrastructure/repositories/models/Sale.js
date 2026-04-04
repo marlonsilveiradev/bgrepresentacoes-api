@@ -55,9 +55,16 @@ module.exports = (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      deleted_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       tableName: 'sales',
+      timestamps: true,
+      paranoid: true,
+      underscored: true,
       indexes: [
         { fields: ['client_id'] },
         { fields: ['plan_id'] },

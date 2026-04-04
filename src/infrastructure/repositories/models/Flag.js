@@ -22,6 +22,10 @@ module.exports = (sequelize) => {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
+      deleted_at: { 
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
       is_active: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
@@ -29,6 +33,9 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'flags',
+      timestamps: true,
+      paranoid: true,
+      underscored: true,
     }
   );
 

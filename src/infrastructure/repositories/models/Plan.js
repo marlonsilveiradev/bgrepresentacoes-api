@@ -25,9 +25,16 @@ module.exports = (sequelize) => {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
       },
+      deleted_at: { 
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       tableName: 'plans',
+      timestamps: true,
+      paranoid: true,
+      underscored: true,
     }
   );
 

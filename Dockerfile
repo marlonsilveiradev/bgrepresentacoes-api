@@ -1,5 +1,5 @@
 # 1. ESTÁGIO BASE (Comum a ambos)
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 RUN apk add --no-cache bash
 WORKDIR /app
 COPY package*.json ./

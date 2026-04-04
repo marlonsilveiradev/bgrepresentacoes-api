@@ -1,4 +1,5 @@
 const { DataTypes } = require('sequelize');
+const { Sequelize } = require('.');
 
 module.exports = (sequelize) => {
   const ClientDocument = sequelize.define(
@@ -45,9 +46,16 @@ module.exports = (sequelize) => {
         allowNull: false,
         references: { model: 'users', key: 'id' },
       },
+      deleted_at: {
+        type: Sequelize.DATE,
+        allowNull: true,
+      },
     },
     {
-      tableName: 'client_documents',
+      tableName: 'client_documents',      
+      timestamps: true,
+      paranoid: true,
+      underscored: true,
       indexes: [
         { fields: ['client_id'] },
         { fields: ['uploaded_by'] },

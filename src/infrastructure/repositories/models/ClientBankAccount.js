@@ -50,7 +50,7 @@ module.exports = (sequelize) => {
     {
       tableName: 'client_bank_accounts',
       timestamps: true,
-      paranoid: true,        // ativa soft delete
+      paranoid: true,
       underscored: true,
       indexes: [
         { fields: ['client_id'] },
