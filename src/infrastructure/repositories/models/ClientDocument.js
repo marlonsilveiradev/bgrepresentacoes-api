@@ -47,7 +47,7 @@ module.exports = (sequelize) => {
         references: { model: 'users', key: 'id' },
       },
       deleted_at: {
-        type: Sequelize.DATE,
+        type: DataTypes.DATE,
         allowNull: true,
       },
     },

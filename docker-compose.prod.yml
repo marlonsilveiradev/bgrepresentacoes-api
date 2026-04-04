@@ -14,8 +14,24 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: bgrepresentacoes-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
-    build: .
+    build:
+      context: .
+      target: production          # ← importante: usa o estágio de produção
     container_name: bgrepresentacoes-api
     restart: always
     env_file:
@@ -25,6 +41,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy   # ← aguarda Redis
     command: npm start
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:3000/health"]
@@ -34,3 +52,4 @@ services:
 
 volumes:
   pgdata:
+  redis_data:                     # ← volume para dados do Redis

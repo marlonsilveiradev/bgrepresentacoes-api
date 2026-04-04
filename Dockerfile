@@ -13,9 +13,11 @@ COPY . .
 # O comando local será sobrescrito pelo docker-compose, mas deixamos um padrão
 CMD ["npm", "run", "dev"]
 
-# 3. ESTÁGIO DE PRODUÇÃO (Usado pelo Railway)
+# 3. ESTÁGIO DE PRODUÇÃO (Usado pelo Railway ou VPS)
 FROM base AS production
-# Instala apenas o essencial para rodar
+# Instala wget para healthcheck
+RUN apk add --no-cache wget
+# Instala apenas dependências de produção
 RUN npm ci --omit=dev
 COPY . .
 # Rodar como usuário node (segurança)
