@@ -30,13 +30,11 @@ const getById = catchAsync(async (req, res, next) => {
 });
 
 const create = catchAsync(async (req, res, next) => {
-  const user = await UserService.createUser(req.body);
-  const userResponse = user.get({ plain: true });
-  delete userResponse.password;
+  const { user, temporaryPassword } = await UserService.createUser(req.body);
   return res.status(201).json({ 
     status: 'success',
     message: 'Usuário criado com sucesso.', 
-    data: userResponse 
+    data:{user, temporaryPassword} 
   });
 });
 

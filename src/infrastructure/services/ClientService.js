@@ -277,14 +277,12 @@ class ClientService {
   }
 
   async _handleBankAccountUpdate(clientId, bankAccount, transaction) {
-    if (!bankAccount) return;
-    const [account, created] = await ClientBankAccount.findOrCreate({
-      where: { client_id: clientId },
-      defaults: { ...bankAccount, client_id: clientId },
-      transaction,
-    });
-    if (!created) await account.update(bankAccount, { transaction });
-  }
+  if (!bankAccount) return;
+  await ClientBankAccount.upsert(
+    { client_id: clientId, ...bankAccount },
+    { transaction, conflictFields: ['client_id'] }
+  );
+}
 
   async _handleDocumentUpdate(clientId, files, requesterId, uploadedPublicIds, oldPublicIdsToDelete, transaction) {
     if (!files) return;

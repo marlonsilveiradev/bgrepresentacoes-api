@@ -1,7 +1,8 @@
 const { Router } = require('express');
 const PlanController = require('../../http/controllers/PlanController');
-const { authMiddleware, authorize } = require('../../http/middlewares/authMiddleware');
-const { validate } = require('../../http/middlewares/validationMiddleware');
+const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
+const { defaultLimiter } = require('../middlewares/rateLimiter')
+const { validate } = require('../middlewares/validationMiddleware');
 const {
   createPlanSchema,
   updatePlanSchema,
@@ -34,7 +35,7 @@ const router = Router();
  *       200:
  *         description: Lista de planos retornada com sucesso
  */
-router.get('/', validate(listPlansQuerySchema, 'query'), PlanController.list);
+router.get('/', defaultLimiter ,validate(listPlansQuerySchema, 'query'), PlanController.list);
 
 /**
  * @swagger
@@ -52,7 +53,7 @@ router.get('/', validate(listPlansQuerySchema, 'query'), PlanController.list);
  *       200:
  *         description: Plano de benefício retornado com sucesso
  */
-router.get('/:id', validate(planIdParamSchema, 'params'), PlanController.getById);
+router.get('/:id', defaultLimiter, validate(planIdParamSchema, 'params'), PlanController.getById);
 
 // Rotas de Escrita - Somente Admin
 router.use(authMiddleware, authorize('admin'));

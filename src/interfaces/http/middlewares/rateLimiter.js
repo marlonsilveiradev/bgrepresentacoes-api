@@ -109,18 +109,11 @@ const initLimiters = async () => {
 // Inicia a inicialização (não bloqueia o servidor, pois os limiters serão usados apenas em requisições)
 initLimiters();
 
-// Exporta middlewares que podem ser undefined no início (mas o Express lida com isso)
-// Na prática, os limiters estarão prontos em poucos milissegundos.
-// Se houver uma requisição antes da inicialização, o Express tentará usar undefined → erro.
-// Para evitar, podemos retornar um middleware temporário que aguarda.
-// Mas como a inicialização é muito rápida (menos de 50ms), dificilmente ocorrerá.
-// Por segurança, criamos um wrapper que aguarda a promessa.
-
 let initPromise = initLimiters();
 
 const defaultLimiter = (req, res, next) => {
   initPromise.then(() => defaultLimiterMiddleware(req, res, next))
-    .catch(() => defaultLimiterMiddleware(req, res, next)); // fallback
+    .catch(() => defaultLimiterMiddleware(req, res, next));
 };
 
 const authLimiter = (req, res, next) => {

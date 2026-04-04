@@ -207,4 +207,4 @@ class OnboardingService {
   }
 }
 
-module.exports = new OnboardingService(); // Exporta uma instância única
+module.exports = new OnboardingService();
