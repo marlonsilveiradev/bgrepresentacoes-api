@@ -1,86 +1,125 @@
-const FlagService = require('../../../infrastructure/services/FlagService');
+/**
+ * CONTROLLER: FlagController
+ */
+
 const catchAsync = require('../../../shared/utils/catchAsync');
+const { flagContainer } = require('../../../infrastructure/container');
+const { FlagPresenter } = require('../../../application/presenters/flag');
+const {
+  ListFlagsQueryDTO,
+  CreateFlagDTO,
+  UpdateFlagDTO,
+} = require('../../../application/dtos/flag');
 
-// GET /api/v1/flags
-const list = catchAsync(async (req, res, next) => {
-  const { page, limit, is_active, search } = req.query;
+class FlagController {
+  /**
+   * GET /api/v1/flags
+   */
+  static list = catchAsync(async (req, res) => {
+    const { page, limit, is_active, search } = req.query;
 
-  const result = await FlagService.listFlags({
-    page:      page  ? Number.parseInt(page, 10)  : 1,
-    limit:     limit ? Number.parseInt(limit, 10) : 20,
-    is_active: is_active === undefined ? undefined : is_active === 'true',
-    search,
+    const queryDTO = new ListFlagsQueryDTO({
+      page,
+      limit,
+      is_active,
+      search,
+    });
+
+    const useCase = flagContainer.getListFlagsUseCase();
+    const result = await useCase.execute(queryDTO);
+
+    const response = FlagPresenter.toListWithPagination(result);
+
+    return res.status(200).json({
+      status: 'success',
+      data: response.data,
+      pagination: response.pagination,
+    });
   });
 
-  return res.status(200).json({
-    status: 'success',
-    data: result.rows,
-    pagination: {
-      total:       result.count,
-      totalPages:  result.totalPages,
-      currentPage: result.currentPage,
-      perPage:     Number.parseInt(limit, 10) || 20,
-    },
-  });
-});
+  /**
+   * GET /api/v1/flags/:id
+   */
+  static getById = catchAsync(async (req, res) => {
+    const { id } = req.params;
 
-// GET /api/v1/flags/:id
-const getById = catchAsync(async (req, res, next) => {
-  const flag = await FlagService.getFlagById(req.params.id);
-  
-  return res.status(200).json({ 
-    status: 'success',
-    data: flag 
-  });
-});
+    const useCase = flagContainer.getGetFlagByIdUseCase();
+    const flag = await useCase.execute(id);
 
-// POST /api/v1/flags
-const create = catchAsync(async (req, res, next) => {
-  const flag = await FlagService.createFlag(req.body);
-  
-  return res.status(201).json({ 
-    status: 'success',
-    message: 'Bandeira criada com sucesso.', 
-    data: flag 
-  });
-});
+    const response = FlagPresenter.toResponse(flag);
 
-// PATCH /api/v1/flags/:id
-const update = catchAsync(async (req, res, next) => {
-  const flag = await FlagService.updateFlag(req.params.id, req.body);
-  
-  return res.status(200).json({ 
-    status: 'success',
-    message: 'Bandeira atualizada com sucesso.', 
-    data: flag 
+    return res.status(200).json({
+      status: 'success',
+      data: response,
+    });
   });
-});
 
-// PATCH /api/v1/flags/:id/deactivate
-const deactivate = catchAsync(async (req, res, next) => {
-  const result = await FlagService.deactivateFlag(req.params.id);
-  
-  return res.status(200).json({
-    status: 'success',
-    ...result
+  /**
+   * POST /api/v1/flags
+   */
+  static create = catchAsync(async (req, res) => {
+    const createDTO = new CreateFlagDTO(req.body);
+
+    const useCase = flagContainer.getCreateFlagUseCase();
+    const flag = await useCase.execute(createDTO);
+
+    const response = FlagPresenter.toResponse(flag);
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Bandeira criada com sucesso.',
+      data: response,
+    });
   });
-});
 
-// PATCH /api/v1/flags/:id/reactivate
-const reactivate = catchAsync(async (req, res, next) => {
-  const result = await FlagService.reactivateFlag(req.params.id);
-  
-  return res.status(200).json({
-    status: 'success',
-    ...result
+  /**
+   * PATCH /api/v1/flags/:id
+   */
+  static update = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const updateDTO = new UpdateFlagDTO(req.body);
+
+    const useCase = flagContainer.getUpdateFlagUseCase();
+    const flag = await useCase.execute(id, updateDTO);
+
+    const response = FlagPresenter.toResponse(flag);
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Bandeira atualizada com sucesso.',
+      data: response,
+    });
   });
-});
 
-module.exports = { 
-  list, 
-  getById, 
-  create, 
-  update, 
-  deactivate, 
-  reactivate 
-};
+  /**
+   * PATCH /api/v1/flags/:id/deactivate
+   */
+  static deactivate = catchAsync(async (req, res) => {
+    const { id } = req.params;
+
+    const useCase = flagContainer.getDeactivateFlagUseCase();
+    const result = await useCase.execute(id);
+
+    return res.status(200).json({
+      status: 'success',
+      message: result.message,
+    });
+  });
+
+  /**
+   * PATCH /api/v1/flags/:id/reactivate
+   */
+  static reactivate = catchAsync(async (req, res) => {
+    const { id } = req.params;
+
+    const useCase = flagContainer.getReactivateFlagUseCase();
+    const result = await useCase.execute(id);
+
+    return res.status(200).json({
+      status: 'success',
+      message: result.message,
+    });
+  });
+}
+
+module.exports = FlagController;

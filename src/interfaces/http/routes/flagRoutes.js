@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const FlagController = require('../../http/controllers/FlagController');
+const FlagController = require('../controllers/FlagController');
 const { authMiddleware, authorize } = require('../../http/middlewares/authMiddleware');
 const { validate } = require('../../http/middlewares/validationMiddleware');
 const {
