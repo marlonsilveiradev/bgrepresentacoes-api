@@ -94,6 +94,7 @@ router.post(
 router.patch(
   '/change-password',
   authMiddleware,
+  authLimiter,
   validate(changePasswordSchema, 'body'),
   AuthController.changePassword
 );

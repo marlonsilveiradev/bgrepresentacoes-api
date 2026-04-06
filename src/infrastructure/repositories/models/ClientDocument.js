@@ -1,5 +1,4 @@
 const { DataTypes } = require('sequelize');
-const { Sequelize } = require('.');
 
 module.exports = (sequelize) => {
   const ClientDocument = sequelize.define(

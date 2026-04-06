@@ -1,8 +1,11 @@
 const Redis = require('ioredis');
 const logger = require('./logger');
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const redis = new Redis(redisUrl, {
+const redis = new Redis({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379', 10),
+  password: process.env.REDIS_PASSWORD || undefined,
+  db: 0,
   lazyConnect: true,
   enableOfflineQueue: false,
   maxRetriesPerRequest: 1,

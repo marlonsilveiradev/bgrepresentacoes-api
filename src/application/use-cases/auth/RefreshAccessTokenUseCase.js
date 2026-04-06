@@ -23,8 +23,7 @@ class RefreshAccessTokenUseCase {
     }
 
     // ✅ PASSO 2: Validar token no BD (não revogado, não expirado)
-    const storedToken = await this.refreshTokenRepository.findValidToken(
-      decoded.sub,
+    const storedToken = await this.refreshTokenRepository.findByToken(
       refreshTokenDTO.refreshToken
     );
 
@@ -46,11 +45,8 @@ class RefreshAccessTokenUseCase {
     const newRefreshToken = generateRefreshToken(tokenPayload);
 
     // ✅ PASSO 5: Rotacionar refresh token (revogar antigo, criar novo)
-    await this.refreshTokenRepository.rotate(
-      user.id,
-      refreshTokenDTO.refreshToken,
-      newRefreshToken
-    );
+    await this.refreshTokenRepository.revokeToken(storedToken.id);
+    await this.refreshTokenRepository.create(user.id, newRefreshToken);
 
     // ✅ PASSO 6: Log
     logger.info({ userId: user.id }, 'Token de acesso renovado');

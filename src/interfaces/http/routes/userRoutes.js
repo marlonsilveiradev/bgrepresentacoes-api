@@ -140,7 +140,7 @@ router.use(authorize('admin'));
  *         name: role
  *         schema:
  *           type: string
- *           enum: [admin, user]
+ *           enum: [admin, user, partner]
  *       - in: query
  *         name: is_active
  *         schema:
@@ -204,7 +204,7 @@ router.get(
  *                 format: email
  *               role:
  *                 type: string
- *                 enum: [admin, user]
+ *                 enum: [admin, user, partner]
  *     responses:
  *       201:
  *         description: Usuário criado com sucesso.
@@ -244,7 +244,7 @@ router.post(
  *                 format: email
  *               role:
  *                 type: string
- *                 enum: [admin, user]
+ *                 enum: [admin, user, partner]
  *               is_active:
  *                 type: boolean
  *     responses:

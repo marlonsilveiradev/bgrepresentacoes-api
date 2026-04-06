@@ -1,51 +1,49 @@
 /**
- * REPOSITÓRIO: RefreshTokenRepository
- * Implementa IRefreshTokenRepository
- * Responsabilidade: Gerenciar refresh tokens
+ * REPOSITORY: RefreshToken
+ * Responsabilidade: Persistência de refresh tokens
  */
 
-const { RefreshToken } = require('./models');
-const IRefreshTokenRepository = require('../../domain/interfaces/IRefreshTokenRepository');
-const AppError = require('../../shared/utils/AppError');
 const logger = require('../config/logger');
 
-class RefreshTokenRepository extends IRefreshTokenRepository {
+class RefreshTokenRepository {
   /**
-   * Criar novo refresh token
+   * Constructor com injeção de dependência
+   * @param {Object} RefreshTokenModel - O modelo Sequelize
    */
-  async create(userId, refreshToken) {
-    try {
-      const token = await RefreshToken.create({
-        user_id: userId,
-        token: refreshToken, // Já vem hashado do service
-        expires_at: this._calculateExpirationDate(),
-      });
-
-      logger.info({ userId }, 'Refresh token criado');
-      return token;
-    } catch (error) {
-      logger.error('[RefreshTokenRepository.create] Erro:', error.message);
-      throw error;
-    }
+  constructor(RefreshTokenModel) {
+    this.RefreshTokenModel = RefreshTokenModel;
   }
 
   /**
-   * Buscar token válido (não expirado, não revogado)
+   * Criar novo refresh token
    */
-  async findValidToken(userId, refreshToken) {
+  async create(userId, token) {
     try {
-      const token = await RefreshToken.findOne({
-        where: {
-          user_id: userId,
-          token: refreshToken,
-          is_revoked: false,
-          expires_at: { [require('sequelize').Op.gt]: new Date() },
-        },
+      if (!userId || !token) {
+        throw new Error('userId e token são obrigatórios');
+      }
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const refreshToken = await this.RefreshTokenModel.create({
+        user_id: userId,
+        token_hash: token,
+        expires_at: expiresAt,
+        revoked: false,
       });
 
-      return token;
+      logger.info(
+        { userId, tokenId: refreshToken.id },
+        '[RefreshTokenRepository.create] Refresh token criado com sucesso'
+      );
+
+      return refreshToken;
     } catch (error) {
-      logger.error('[RefreshTokenRepository.findValidToken] Erro:', error.message);
+      logger.error(
+        { userId, error: error.message },
+        '[RefreshTokenRepository.create] Erro ao criar refresh token'
+      );
       throw error;
     }
   }
@@ -55,51 +53,127 @@ class RefreshTokenRepository extends IRefreshTokenRepository {
    */
   async revokeAllForUser(userId) {
     try {
-      await RefreshToken.update(
-        { is_revoked: true },
+      await this.RefreshTokenModel.update(
+        { revoked: true },
         { where: { user_id: userId } }
       );
 
-      logger.info({ userId }, 'Todos os refresh tokens revogados');
+      logger.info(
+        { userId },
+        '[RefreshTokenRepository.revokeAllForUser] Todos os refresh tokens revogados'
+      );
     } catch (error) {
-      logger.error('[RefreshTokenRepository.revokeAllForUser] Erro:', error.message);
+      logger.error(
+        { userId, error: error.message },
+        '[RefreshTokenRepository.revokeAllForUser] Erro ao revogar tokens'
+      );
       throw error;
     }
   }
 
   /**
-   * Rotacionar token (revogar antigo, criar novo)
+   * Buscar token válido e não revogado
    */
-  async rotate(userId, oldRefreshToken, newRefreshToken) {
+  async findByToken(token) {
+  try {
+    const { Op } = require('sequelize');
+    const refreshToken = await this.RefreshTokenModel.findOne({
+      where: {
+        token_hash: token,
+        revoked: false,
+        expires_at: {
+          [Op.gt]: new Date() // Garante que a data de expiração é maior que 'agora'
+        }
+      },
+    });
+
+    return refreshToken;
+  } catch (error) {
+    logger.error({ error: error.message }, '[RefreshTokenRepository.findByToken] Erro');
+    throw error;
+  }
+}
+
+  /**
+   * Verificar se token expirou
+   */
+  async isTokenExpired(tokenId) {
     try {
-      // Revogar antigo
-      await RefreshToken.update(
-        { is_revoked: true },
-        { where: { user_id: userId, token: oldRefreshToken } }
+      const refreshToken = await this.RefreshTokenModel.findByPk(tokenId);
+
+      if (!refreshToken || refreshToken.revoked) {
+        return true;
+      }
+
+      const now = new Date();
+      return refreshToken.expires_at < now;
+    } catch (error) {
+      logger.error(
+        { error: error.message },
+        '[RefreshTokenRepository.isTokenExpired] Erro ao verificar expiração'
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Revogar token específico
+   */
+  async revokeToken(tokenId) {
+    try {
+      await this.RefreshTokenModel.update(
+        { revoked: true },
+        { where: { id: tokenId } }
       );
 
-      // Criar novo
-      const token = await RefreshToken.create({
-        user_id: userId,
-        token: newRefreshToken,
-        expires_at: this._calculateExpirationDate(),
-      });
-
-      logger.info({ userId }, 'Refresh token rotacionado');
-      return token;
+      logger.info(
+        '[RefreshTokenRepository.revokeToken] Token revogado com sucesso'
+      );
     } catch (error) {
-      logger.error('[RefreshTokenRepository.rotate] Erro:', error.message);
+      logger.error(
+        { error: error.message },
+        '[RefreshTokenRepository.revokeToken] Erro ao revogar token'
+      );
       throw error;
     }
   }
 
   /**
-   * Calcular data de expiração (7 dias)
+   * Buscar token por ID
    */
-  _calculateExpirationDate() {
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-    return expiresAt;
+  async findById(tokenId) {
+    try {
+      const refreshToken = await this.RefreshTokenModel.findByPk(tokenId);
+      return refreshToken;
+    } catch (error) {
+      logger.error(
+        { error: error.message, tokenId },
+        '[RefreshTokenRepository.findById] Erro ao buscar token'
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Buscar todos os tokens não revogados de um usuário
+   */
+  async findAllActiveForUser(userId) {
+    try {
+      const tokens = await this.RefreshTokenModel.findAll({
+        where: {
+          user_id: userId,
+          revoked: false,
+        },
+      });
+
+      return tokens;
+    } catch (error) {
+      logger.error(
+        { userId, error: error.message },
+        '[RefreshTokenRepository.findAllActiveForUser] Erro ao buscar tokens'
+      );
+      throw error;
+    }
   }
 }
 

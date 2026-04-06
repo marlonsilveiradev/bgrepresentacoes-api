@@ -14,7 +14,7 @@ module.exports = (sequelize) => {
       allowNull: false,
     },
     token_hash: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
       allowNull: false,
     },
     expires_at: {

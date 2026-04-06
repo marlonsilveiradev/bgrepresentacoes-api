@@ -23,23 +23,27 @@ const loginSchema = yup.object({
     .transform((value) => (value ? value.toLowerCase() : value)),
   password: yup
     .string()
-    .required('Senha é obrigatória.'),
+    .required('Senha é obrigatória.')
+    .trim(),
 });
 
 // ─── Troca de Senha ───────────────────────────────────────────────────────────
 const changePasswordSchema = yup.object({
   currentPassword: yup
     .string()
-    .required('Senha atual é obrigatória.'),
+    .required('Senha atual é obrigatória.')
+    .trim(),
   newPassword: yup
     .string()
     .required('Nova senha é obrigatória.')
     .min(8, STRONG_PASSWORD_MESSAGE)
-    .matches(STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE),
+    .matches(STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE)
+    .trim(),
   confirmPassword: yup
     .string()
     .required('Confirmação de senha é obrigatória.')
-    .oneOf([yup.ref('newPassword')], 'As senhas não coincidem.'),
+    .oneOf([yup.ref('newPassword')], 'As senhas não coincidem.')
+    .trim(),
 });
 
   const refreshSchema = yup.object({

@@ -20,8 +20,8 @@ class ChangePasswordDTO {
       throw new AppError('Nova senha é obrigatória', 422);
     }
 
-    if (data.newPassword.length < 6) {
-      throw new AppError('Nova senha deve ter pelo menos 6 caracteres', 422);
+    if (data.newPassword.length < 8) {
+      throw new AppError('Nova senha deve ter pelo menos 8 caracteres', 422);
     }
 
     if (data.currentPassword === data.newPassword) {

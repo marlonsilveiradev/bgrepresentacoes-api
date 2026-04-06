@@ -16,7 +16,7 @@ module.exports = {
   },
 
   bcrypt: {
-    rounds: Number.parseInt(process.env.BCRYPT_ROUNDS, 10) || 12,
+    rounds: process.env.BCRYPT_ROUNDS ? parseInt(process.env.BCRYPT_ROUNDS, 10) : 12,
   },
 
   cloudinary: {

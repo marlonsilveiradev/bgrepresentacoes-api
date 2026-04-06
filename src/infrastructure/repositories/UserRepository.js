@@ -4,7 +4,7 @@
  * Responsabilidade: Acessar BD e transformar em entidades
  */
 
-const { Op } = require('sequelize');
+const { Op, where } = require('sequelize');
 const { User: UserModel } = require('./models');
 const IUserRepository = require('../../domain/interfaces/IUserRepository');
 const User = require('../../domain/entities/User');
@@ -26,7 +26,9 @@ class UserRepository extends IUserRepository {
           'role',
           'is_active',
           'last_login_at',
+          'created_at'
         ],
+        raw: false,
       });
       return user;
     } catch (error) {
@@ -60,6 +62,7 @@ class UserRepository extends IUserRepository {
           'created_at',
           'updated_at',
         ],
+        raw:false,
       });
       return user;
     } catch (error) {
@@ -91,6 +94,10 @@ class UserRepository extends IUserRepository {
       }
       await user.update(
         { last_login_at: new Date() },
+        {
+          where: { id: userId },
+          individualHooks: true,
+        },
         { hooks: false }
       );
       logger.info({ userId }, 'Last login atualizado');

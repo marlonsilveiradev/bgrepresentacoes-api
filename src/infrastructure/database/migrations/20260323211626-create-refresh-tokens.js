@@ -13,7 +13,7 @@ module.exports = {
         allowNull: false,
       },
       token_hash: {
-        type: Sequelize.STRING,
+        type: Sequelize.TEXT,
         allowNull: false,
       },
       expires_at: {
