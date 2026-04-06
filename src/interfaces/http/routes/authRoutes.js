@@ -1,8 +1,8 @@
 const { Router } = require('express');
-const AuthController = require('../../http/controllers/AuthController');
-const { authMiddleware } = require('../../http/middlewares/authMiddleware');
-const { authLimiter } = require('../../http/middlewares/rateLimiter');
-const { validate } = require('../../http/middlewares/validationMiddleware');
+const AuthController = require('../controllers/AuthController');
+const { authMiddleware } = require('../middlewares/authMiddleware');
+const { authLimiter } = require('../middlewares/rateLimiter');
+const { validate } = require('../middlewares/validationMiddleware');
 const { loginSchema, changePasswordSchema, refreshSchema } = require('../validators/authValidators');
 
 const router = Router();
@@ -50,7 +50,7 @@ const router = Router();
 router.post(
   '/login',
   authLimiter,
-  validate(loginSchema),
+  validate(loginSchema, 'body'),
   AuthController.login
 );
 
@@ -94,7 +94,7 @@ router.post(
 router.patch(
   '/change-password',
   authMiddleware,
-  validate(changePasswordSchema),
+  validate(changePasswordSchema, 'body'),
   AuthController.changePassword
 );
 
@@ -121,7 +121,7 @@ router.patch(
  *       401:
  *         description: Refresh token inválido ou expirado
  */
-router.post('/refresh', authLimiter, validate(refreshSchema), AuthController.refresh);
+router.post('/refresh', authLimiter, validate(refreshSchema, 'body'), AuthController.refresh);
 
 /**
  * @swagger

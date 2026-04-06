@@ -8,6 +8,10 @@ const redis = new Redis(redisUrl, {
   maxRetriesPerRequest: 1,
 });
 
+redis.connect().catch((err) => {
+  logger.warn({ err }, '[Redis] Erro ao conectar — usando fallback em memória');
+});
+
 // Promessa que resolve quando o Redis estiver pronto
 const waitForRedis = () => {
   return new Promise((resolve, reject) => {

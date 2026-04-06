@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const OnboardingController = require('../../http/controllers/OnboardingController');
-const { authMiddleware, authorize } = require('../../http/middlewares/authMiddleware');
-const parseMultipartBody = require('../../http/middlewares/parseMultipartBody');
-const { onboardingUpload } = require('../../http/middlewares/uploadMiddleware');
+const OnboardingController = require('../controllers/OnboardingController');
+const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
+const parseMultipartBody = require('../middlewares/parseMultipartBody');
+const { onboardingUpload } = require('../middlewares/uploadMiddleware');
 const { onboardingSchema } = require('../validators/onboardingValidator');
 const { validate } = require('../middlewares/validationMiddleware');
 const { validateFiles } = require('../middlewares/upload/fileValidationMiddleware')

@@ -1,13 +1,20 @@
+/**
+ * ROUTES: User Routes
+ * Refatorado para Clean Architecture
+ * ✅ Respeita padrão original + mantém proteções
+ */
+
 const { Router } = require('express');
-const UserController = require('../../http/controllers/UserController');
-const { authMiddleware, authorize } = require('../../http/middlewares/authMiddleware');
-const { validate } = require('../../http/middlewares/validationMiddleware');
+const UserController = require('../controllers/UserController');
+const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
+const { validate } = require('../middlewares/validationMiddleware');
 const {
   createUserSchema,
   updateUserSchema,
   updateProfileSchema,
   userIdParamSchema,
   listUsersQuerySchema,
+  changeOwnPasswordSchema,
 } = require('../validators/userValidators');
 
 const router = Router();
@@ -19,18 +26,9 @@ const router = Router();
  *   description: Gerenciamento de usuários do sistema.
  */
 
-// Autenticação obrigatória em TODAS as rotas deste arquivo
-router.use(authMiddleware);
-
 // ─── Self-service: Perfil próprio ────────────────────────────────────────────
-// IMPORTANTE: estas rotas devem vir ANTES do authorize('admin') abaixo,
-// pois qualquer role autenticada pode acessá-las.
-
-/**
- * GET /api/v1/users/profile
- * Retorna os dados do próprio usuário autenticado.
- * Roles: admin, user, partner
- */
+// IMPORTANTE: estas rotas devem vir ANTES do router.use(authMiddleware),
+// Apenas autenticação obrigatória. Qualquer role pode acessar.
 
 /**
  * @swagger
@@ -44,14 +42,11 @@ router.use(authMiddleware);
  *       200:
  *         description: Dados do usuário retornados com sucesso.
  */
-router.get('/profile', UserController.getProfile);
-
-/**
- * PATCH /api/v1/users/profile
- * Permite alterar apenas o próprio nome.
- * E-mail, role e is_active são bloqueados — apenas admin pode alterar.
- * Roles: admin, user, partner
- */
+router.get(
+  '/profile',
+  authMiddleware,
+  UserController.getProfile
+);
 
 /**
  * @swagger
@@ -77,17 +72,50 @@ router.get('/profile', UserController.getProfile);
  */
 router.patch(
   '/profile',
-  validate(updateProfileSchema),
+  authMiddleware,
+  validate(updateProfileSchema, 'body'),
   UserController.updateProfile
 );
+
+/**
+ * @swagger
+ * /users/profile/change-password:
+ *   patch:
+ *     summary: Alterar a própria senha via perfil
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Senha alterada com sucesso.
+ *       401:
+ *         description: Senha atual incorreta.
+ */
+router.patch(
+  '/profile/change-password',
+  authMiddleware,
+  validate(changeOwnPasswordSchema, 'body'),
+  UserController.changeOwnPassword
+);
+
+// ─── Autenticação obrigatória em TODAS as rotas deste ponto em diante ────────
+router.use(authMiddleware);
 
 // ─── Rotas administrativas ────────────────────────────────────────────────────
 // A partir daqui, apenas admin tem acesso.
 router.use(authorize('admin'));
-/**
- * GET /api/v1/users
- * Lista todos os usuários com paginação e filtros.
- */
 
 /**
  * @swagger
@@ -112,22 +140,21 @@ router.use(authorize('admin'));
  *         name: role
  *         schema:
  *           type: string
- *           enum: [admin, user, partner]
- *     responses:
- *       200:
- *         description: Lista de usuários retornada com sucesso.
+ *           enum: [admin, user]
+ *       - in: query
+ *         name: is_active
+ *         schema:
+ *           type: boolean
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
  */
 router.get(
   '/',
   validate(listUsersQuerySchema, 'query'),
   UserController.list
 );
-
-
-/**
- * GET /api/v1/users/:id
- * Busca um usuário específico por UUID.
- */
 
 /**
  * @swagger
@@ -155,13 +182,6 @@ router.get(
 );
 
 /**
- * POST /api/v1/users
- * Cria novo usuário com senha temporária gerada automaticamente.
- * A senha temporária é retornada UMA VEZ no response — repassar ao usuário.
- * No primeiro login, o sistema obriga a troca da senha (last_login_at = null).
- */
-
-/**
  * @swagger
  * /users:
  *   post:
@@ -177,24 +197,23 @@ router.get(
  *             type: object
  *             required: [name, email, role]
  *             properties:
- *               name: {type: string}
- *               email: {type: string, format: email}
- *               role: {type: string, enum: [admin, user, partner]}
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               role:
+ *                 type: string
+ *                 enum: [admin, user]
  *     responses:
  *       201:
  *         description: Usuário criado com sucesso.
  */
 router.post(
   '/',
-  validate(createUserSchema),
+  validate(createUserSchema, 'body'),
   UserController.create
 );
-
-/**
- * PATCH /api/v1/users/:id
- * Atualiza qualquer campo de um usuário.
- * Proteções: não pode mudar o próprio role nem se auto-desativar.
- */
 
 /**
  * @swagger
@@ -218,10 +237,16 @@ router.post(
  *           schema:
  *             type: object
  *             properties:
- *               name: {type: string}
- *               email: {type: string, format: email}
- *               role: {type: string, enum: [admin, user, partner]}
- *               is_active: {type: boolean}
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               role:
+ *                 type: string
+ *                 enum: [admin, user]
+ *               is_active:
+ *                 type: boolean
  *     responses:
  *       200:
  *         description: Usuário atualizado com sucesso.
@@ -229,14 +254,9 @@ router.post(
 router.patch(
   '/:id',
   validate(userIdParamSchema, 'params'),
-  validate(updateUserSchema),
+  validate(updateUserSchema, 'body'),
   UserController.update
 );
-
-/**
- * PATCH /api/v1/users/:id/deactivate
- * Desativação lógica (is_active = false). Não deleta o registro.
- */
 
 /**
  * @swagger
@@ -262,11 +282,6 @@ router.patch(
   validate(userIdParamSchema, 'params'),
   UserController.deactivate
 );
-
-/**
- * PATCH /api/v1/users/:id/reactivate
- * Reativa um usuário desativado.
- */
 
 /**
  * @swagger
