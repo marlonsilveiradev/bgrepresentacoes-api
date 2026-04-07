@@ -5,6 +5,7 @@
  */
 
 const { Router } = require('express');
+const { ROLES } = require('../../../shared/constants/roles')
 const UserController = require('../controllers/UserController');
 const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
 const { validate } = require('../middlewares/validationMiddleware');
@@ -115,7 +116,7 @@ router.use(authMiddleware);
 
 // ─── Rotas administrativas ────────────────────────────────────────────────────
 // A partir daqui, apenas admin tem acesso.
-router.use(authorize('admin'));
+router.use(authorize(ROLES.ADMIN));
 
 /**
  * @swagger

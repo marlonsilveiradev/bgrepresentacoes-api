@@ -30,7 +30,8 @@ class UserRepository extends IUserRepository {
         ],
         raw: false,
       });
-      return user;
+      if (!user) return null;
+      return this.modelToEntity(user);
     } catch (error) {
       logger.error('[UserRepository.findByEmail] Erro:', error.message);
       throw error;
@@ -64,7 +65,8 @@ class UserRepository extends IUserRepository {
         ],
         raw:false,
       });
-      return user;
+      if (!user) return null;
+      return this.modelToEntity(user);
     } catch (error) {
       logger.error('[UserRepository.findById] Erro:', error.message);
       throw error;
@@ -152,10 +154,11 @@ class UserRepository extends IUserRepository {
         offset,
       });
 
+      const entities = rows.map(model => this.modelToEntity(model));
       const totalPages = Math.ceil(count / limit);
 
       return {
-        data: rows,
+        data:entities,
         total: count,
         page,
         limit,

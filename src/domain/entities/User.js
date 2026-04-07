@@ -1,7 +1,7 @@
 /**
  * ENTIDADE: User
  */
-
+const { ROLES } = require('../../shared/constants/roles')
 class User {
   constructor({
     id,
@@ -75,10 +75,10 @@ class User {
    * REGRA DO DOMÍNIO: Validar role
    */
   validateRole(role) {
-    const validRoles = ['admin', 'user', 'partner'];
+    const validRoles = Object.values(ROLES);
 
     if (!role || !validRoles.includes(role)) {
-      throw new Error('Role deve ser "admin", "user" ou "partner"');
+      throw new Error(`Role inválida. Valores aceitos: ${validRoles.join(', ')}`);
     }
   }
 

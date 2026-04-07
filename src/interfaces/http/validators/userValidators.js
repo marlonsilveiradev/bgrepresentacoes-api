@@ -1,4 +1,5 @@
 const yup = require('yup');
+const { ROLES } = require('../../../shared/constants/roles')
 
 const { STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE } = require('./authValidators');
 
@@ -23,7 +24,7 @@ const createUserSchema = yup.object({
   role: yup
     .string()
     .required('Papel (role) é obrigatório.')
-    .oneOf(['admin', 'user', 'partner'], 'Role inválido. Use: admin, user ou partner.'),
+    .oneOf(Object.values(ROLES), `Role inválido. Use: ${Object.values(ROLES).join(', ')}.`),
 }).noUnknown(true).strict();
 
 // ─── Atualizar usuário (admin) ────────────────────────────────────────────────
@@ -40,7 +41,7 @@ const updateUserSchema = yup.object({
 
   role: yup
     .string()
-    .oneOf(['admin', 'user', 'partner'], 'Role inválido.')
+    .oneOf(Object.values(ROLES), 'Role inválido.')
     .optional(),
 
   is_active: yup
@@ -158,7 +159,7 @@ const listUsersQuerySchema = yup.object({
 
   limit: yup.number().integer().min(1).max(100).default(20).optional(),
 
-  role: yup.string().oneOf(['admin', 'user', 'partner']).optional(),
+  role: yup.string().oneOf(Object.values(ROLES)).optional(),
 
   is_active: yup.boolean().optional(),
 
