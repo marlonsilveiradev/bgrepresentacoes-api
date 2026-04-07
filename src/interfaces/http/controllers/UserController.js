@@ -11,6 +11,7 @@ const {
   CreateUserDTO,
   UpdateUserDTO,
   UpdateProfileDTO,
+  ChangeOwnPasswordDTO
 } = require('../../../application/dtos/user');
 
 class UserController {

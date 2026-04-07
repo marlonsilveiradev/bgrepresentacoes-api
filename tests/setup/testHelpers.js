@@ -3,6 +3,7 @@ require('dotenv').config({ path: '.env.test' });
 const request = require('supertest');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
+const redis = require('../../src/infrastructure/config/redis');
 
 const app = require('../../src/infrastructure/config/app');
 
@@ -119,6 +120,28 @@ async function cleanDatabase() {
   
   await sequelize.query('SET session_replication_role = DEFAULT;');
 }
+
+afterAll(async () => {
+  try {
+
+    //Limpeza do Banco
+    await cleanDatabase();
+    // Fecha a conexão do Sequelize
+    if (sequelize) {
+      await sequelize.close();
+    }
+    
+    // FECHA O REDIS PARA O JEST ENCERRAR
+  if (redis) {
+    await redis.quit();
+    redis.disconnect();
+  }
+    
+    console.log('✅ Conexões de teste encerradas.');
+  } catch (error) {
+    console.error('❌ Erro ao fechar conexões:', error);
+  }
+});
 
 module.exports = {
   app,

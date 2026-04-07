@@ -23,7 +23,12 @@ const waitForRedis = () => {
     } else {
       redis.once('ready', () => resolve(redis));
       redis.once('error', (err) => reject(err));
-      setTimeout(() => reject(new Error('Redis timeout')), 5000);
+      const timer = setTimeout(() => reject(new Error('Redis timeout')), 5000);
+      timer.unref();
+      redis.once('ready', () => {
+      clearTimeout(timer);
+      resolve(redis);
+    });
     }
   });
 };

@@ -82,55 +82,14 @@ class LoginUseCase {
    * Validar senha
    */
   async _validatePassword(user, password) {
-  console.log('\n╔════════════════════════════════════════╗');
-  console.log('║      PASSWORD DEBUG COMPLETO             ║');
-  console.log('╚════════════════════════════════════════╝\n');
 
-  // 1. Informações do usuário
-  console.log('📝 Usuário:');
-  console.log('   - ID:', user.id);
-  console.log('   - Email:', user.email);
-  console.log('   - Password no banco (completo):');
-  console.log('     ', user.password);
+    const passwordMatch = await user.checkPassword(password);
 
-  // 2. Senha enviada
-  console.log('\n🔑 Senha enviada:');
-  console.log('   -', password);
-  console.log('   - Tipo:', typeof password);
-  console.log('   - Length:', password?.length);
-
-  // 3. Teste manual do bcrypt
-  console.log('\n🧪 Teste manual bcrypt.compare():');
-  
-  try {
-    const bcrypt = require('bcryptjs');
-    
-    const manualMatch = await bcrypt.compare(password, user.password);
-    console.log('   - Resultado (manual):', manualMatch);
-    
-    // 4. Teste com método prototype
-    console.log('\n🔄 Teste via método prototype:');
-    const prototypeMatch = await user.checkPassword(password);
-    console.log('   - Resultado (prototype):', prototypeMatch);
-    
-    // 5. Informações adicionais
-    console.log('\nℹ️  Informações adicionais:');
-    console.log('   - Rounds do hash:', user.password?.substring(7, 9));
-    console.log('   - Hash válido?', user.password?.match(/^\$2[aby]\$\d{2}\$.{53}$/g) !== null);
-    
-  } catch (error) {
-    console.error('   ❌ Erro:', error.message);
+    if (!passwordMatch) {
+      logger.warn({ userId: user.id }, 'Senha inválida');
+      throw new AppError('E-mail ou senha incorretos.', 401);
+    }
   }
-
-  console.log('\n╚════════════════════════════════════════╝\n');
-
-  const passwordMatch = await user.checkPassword(password);
-
-  if (!passwordMatch) {
-    logger.warn({ userId: user.id }, 'Senha inválida');
-    throw new AppError('E-mail ou senha incorretos.', 401);
-  }
-}
 }
 
 module.exports = LoginUseCase;

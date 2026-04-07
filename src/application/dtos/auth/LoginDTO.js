@@ -20,8 +20,8 @@ class LoginDTO {
       throw new AppError('Senha é obrigatória', 422);
     }
 
-    if (data.password.length < 6) {
-      throw new AppError('Senha deve ter pelo menos 6 caracteres', 422);
+    if (data.password.length < 8) {
+      throw new AppError('Senha deve ter pelo menos 8 caracteres', 422);
     }
 
     return new LoginDTO(data);

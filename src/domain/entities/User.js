@@ -2,11 +2,14 @@
  * ENTIDADE: User
  */
 const { ROLES } = require('../../shared/constants/roles')
+const bcrypt = require('bcryptjs');
+
 class User {
   constructor({
     id,
     name,
     email,
+    password,
     cpf,
     address_street,
     address_number,
@@ -28,6 +31,7 @@ class User {
     this.id = id;
     this.name = name.trim();
     this.email = email.toLowerCase().trim();
+    this.password = password;
     this.cpf = cpf || null;
     this.address_street = address_street || null;
     this.address_number = address_number || null;
@@ -81,6 +85,40 @@ class User {
       throw new Error(`Role inválida. Valores aceitos: ${validRoles.join(', ')}`);
     }
   }
+  /**
+     * REGRA DO DOMÍNIO: Validar senha (comparação hash)
+     */
+  async checkPassword(candidatePassword) {
+    if (!this.password) {
+      return false;
+    }
+    return bcrypt.compare(candidatePassword, this.password);
+  }
+
+  /**
+   * Serializar para JSON (Segurança: remove a senha da saída)
+   */
+  toJSON() {
+    return {
+      id: this.id,
+      name: this.name,
+      email: this.email,
+      cpf: this.cpf,
+      address_street: this.address_street,
+      address_number: this.address_number,
+      address_complement: this.address_complement,
+      address_neighborhood: this.address_neighborhood,
+      address_city: this.address_city,
+      address_state: this.address_state,
+      address_zip: this.address_zip,
+      role: this.role,
+      is_active: this.is_active,
+      last_login_at: this.last_login_at,
+      created_at: this.created_at,
+      updated_at: this.updated_at,
+    };
+  }
+
 
   /**
    * REGRA DO DOMÍNIO: Atualizar perfil (apenas campos de perfil)

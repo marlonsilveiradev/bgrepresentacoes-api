@@ -290,6 +290,7 @@ class UserRepository extends IUserRepository {
       id: model.id,
       name: model.name,
       email: model.email,
+      password: model.password,
       role: model.role,
       is_active: model.is_active,
       last_login_at: model.last_login_at,

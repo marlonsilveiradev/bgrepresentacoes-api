@@ -1,7 +1,7 @@
 ================================================================================
   ENTERPRISE ARCHITECT REPORT - AUDITORIA COMPLETA
   Projeto: Backend API
-  Data: 2026-04-06_00-45-49
+  Data: 2026-04-06_22-32-21
 ================================================================================
 
 ###############################################################################
@@ -118,6 +118,7 @@ src
 |   |   |-- UserContainer.js
 |   |   `-- index.js
 |   |-- database
+|   |   |-- index.js
 |   |   |-- migrations
 |   |   |   |-- 20260101000000-create-machines-table.js
 |   |   |   |-- 20260310000001-create-users.js
@@ -158,19 +159,16 @@ src
 |   |       |-- User.js
 |   |       `-- index.js
 |   `-- services
-|       |-- AuthService.js
 |       |-- CacheService.js
 |       |-- ClientDocumentService.js
 |       |-- ClientFlagService.js
 |       |-- ClientService.js
 |       |-- DocumentService.js
-|       |-- FlagService.js
 |       |-- OnboardingService.js
 |       |-- PlanService.js
 |       |-- RefreshTokenService.js
 |       |-- SaleService.js
-|       |-- StorageService.js
-|       `-- UserService.js
+|       `-- StorageService.js
 |-- interfaces
 |   `-- http
 |       |-- controllers
@@ -228,7 +226,7 @@ src
         |-- tokenHash.js
         `-- validateEnv.js
 
-46 directories, 173 files
+46 directories, 171 files
 
 ###############################################################################
 # SEÇÃO 2: DETECÇÃO DE PADRÕES E TECNOLOGIAS
@@ -250,16 +248,16 @@ src
 ###############################################################################
 # SEÇÃO 3: ALERTAS CRÍTICOS
 ###############################################################################
-Console.log em produção: [0;31mENCONTRADOS (29)[0m
+Console.log em produção: [0;31mENCONTRADOS (27)[0m
 Try/Catch ausente em async: OK
 Uploads sem validação: [1;33mVerificar manualmente[0m
 
 ###############################################################################
 # SEÇÃO 4: MÉTRICAS
 ###############################################################################
-Total de arquivos JS: 174
+Total de arquivos JS: 172
 Controllers: 10
-Services: 13
+Services: 10
 Repositories: 18
 Middlewares: 7
 
@@ -464,8 +462,8 @@ class ChangePasswordDTO {
       throw new AppError('Nova senha é obrigatória', 422);
     }
 
-    if (data.newPassword.length < 6) {
-      throw new AppError('Nova senha deve ter pelo menos 6 caracteres', 422);
+    if (data.newPassword.length < 8) {
+      throw new AppError('Nova senha deve ter pelo menos 8 caracteres', 422);
     }
 
     if (data.currentPassword === data.newPassword) {
@@ -955,23 +953,23 @@ const AppError = require('../../../shared/utils/AppError');
 
 class CreateUserDTO {
   constructor({ name, email, role }) {
-    this.name = name;
+    this.name = name?.trim();
     this.email = email?.toLowerCase().trim();
     this.role = role;
   }
 
   static validate(data) {
-    if (!data.name || typeof data.name !== 'string') {
-      throw new AppError('Nome é obrigatório e deve ser string', 422);
+    if (!data.name || typeof data.name !== 'string' || data.name.trim().length < 3) {
+      throw new AppError('Nome é obrigatório e deve ter no mínimo 3 caracteres', 422);
     }
 
     if (!data.email || typeof data.email !== 'string') {
       throw new AppError('E-mail é obrigatório', 422);
     }
 
-    const validRoles = ['admin', 'user'];
+    const validRoles = ['admin', 'user', 'partner'];
     if (!data.role || !validRoles.includes(data.role)) {
-      throw new AppError('Role deve ser "admin" ou "user"', 422);
+      throw new AppError('Role deve ser "admin", "user" ou "partner', 422);
     }
 
     return new CreateUserDTO(data);
@@ -1216,9 +1214,15 @@ class UserResponseDTO {
     this.email = user.email;
     this.role = user.role;
     this.is_active = user.is_active;
-    this.last_login_at = user.last_login_at?.toISOString() || null;
-    this.created_at = user.created_at?.toISOString() || null;
-    this.updated_at = user.updated_at?.toISOString() || null;
+    this.last_login_at = user.last_login_at
+      ? new Date(user.last_login_at).toISOString()
+      : null;
+    this.created_at = user.created_at
+      ? new Date(user.created_at).toISOString()
+      : null;
+    this.updated_at = user.updated_at
+      ? new Date(user.updated_at).toISOString()
+      : null;
   }
 
   static toList(users) {
@@ -1819,8 +1823,7 @@ class RefreshAccessTokenUseCase {
     }
 
     // ✅ PASSO 2: Validar token no BD (não revogado, não expirado)
-    const storedToken = await this.refreshTokenRepository.findValidToken(
-      decoded.sub,
+    const storedToken = await this.refreshTokenRepository.findByToken(
       refreshTokenDTO.refreshToken
     );
 
@@ -1842,11 +1845,8 @@ class RefreshAccessTokenUseCase {
     const newRefreshToken = generateRefreshToken(tokenPayload);
 
     // ✅ PASSO 5: Rotacionar refresh token (revogar antigo, criar novo)
-    await this.refreshTokenRepository.rotate(
-      user.id,
-      refreshTokenDTO.refreshToken,
-      newRefreshToken
-    );
+    await this.refreshTokenRepository.revokeToken(storedToken.id);
+    await this.refreshTokenRepository.create(user.id, newRefreshToken);
 
     // ✅ PASSO 6: Log
     logger.info({ userId: user.id }, 'Token de acesso renovado');
@@ -3384,7 +3384,7 @@ FILE: src/domain/entities/User.js
 /**
  * ENTIDADE: User
  */
-
+const { ROLES } = require('../../shared/constants/roles')
 class User {
   constructor({
     id,
@@ -3458,10 +3458,10 @@ class User {
    * REGRA DO DOMÍNIO: Validar role
    */
   validateRole(role) {
-    const validRoles = ['admin', 'user', 'partner'];
+    const validRoles = Object.values(ROLES);
 
     if (!role || !validRoles.includes(role)) {
-      throw new Error('Role deve ser "admin", "user" ou "partner"');
+      throw new Error(`Role inválida. Valores aceitos: ${validRoles.join(', ')}`);
     }
   }
 
@@ -4499,10 +4499,11 @@ module.exports = swaggerSpec;
 FILE: src/infrastructure/container/AuthContainer.js
 --------------------------------------------------------------------------------
 /**
- * CONTAINER: Auth Dependencies
- * Injeção de dependências centralizada
+ * CONTAINER: AuthContainer
+ * Responsabilidade: Injeção de Dependências para Autenticação
+ * Padrão: Lazy Loading para evitar erros de inicialização do Sequelize
  */
-const db = require('')
+
 const { UserRepository, RefreshTokenRepository } = require('../repositories');
 const {
   LoginUseCase,
@@ -4512,44 +4513,82 @@ const {
 
 class AuthContainer {
   constructor() {
-    // Repositories (singleton)
-    this.userRepository = new UserRepository();
-    this.refreshTokenRepository = new RefreshTokenRepository();
-
-    // Use Cases (singleton)
-    this.loginUseCase = new LoginUseCase(
-      this.userRepository,
-      this.refreshTokenRepository
-    );
-
-    this.changePasswordUseCase = new ChangePasswordUseCase(
-      this.userRepository,
-      this.refreshTokenRepository
-    );
-
-    this.refreshAccessTokenUseCase = new RefreshAccessTokenUseCase(
-      this.userRepository,
-      this.refreshTokenRepository
-    );
+    // Inicializamos as instâncias como null
+    this._userRepository = null;
+    this._refreshTokenRepository = null;
+    this._loginUseCase = null;
+    this._changePasswordUseCase = null;
+    this._refreshAccessTokenUseCase = null;
   }
 
-  getLoginUseCase() {
-    return this.loginUseCase;
+  /**
+   * Getter para o banco de dados.
+   * Garante que o Sequelize só seja carregado quando um método for chamado.
+   */
+  get db() {
+    return require('../database');
   }
 
-  getChangePasswordUseCase() {
-    return this.changePasswordUseCase;
-  }
+  // ─── Repositories ──────────────────────────────────────────────────────────
 
-  getRefreshAccessTokenUseCase() {
-    return this.refreshAccessTokenUseCase;
+  getUserRepository() {
+    if (!this._userRepository) {
+      this._userRepository = new UserRepository(this.db.User);
+    }
+    return this._userRepository;
   }
 
   getRefreshTokenRepository() {
-    return this.refreshTokenRepository;
+    if (!this._refreshTokenRepository) {
+      this._refreshTokenRepository = new RefreshTokenRepository(this.db.RefreshToken);
+    }
+    return this._refreshTokenRepository;
+  }
+
+  // ─── Use Cases ─────────────────────────────────────────────────────────────
+
+  /**
+   * Retorna a instância de LoginUseCase
+   */
+  getLoginUseCase() {
+    if (!this._loginUseCase) {
+      this._loginUseCase = new LoginUseCase(
+        this.getUserRepository(),
+        this.getRefreshTokenRepository()
+      );
+    }
+    return this._loginUseCase;
+  }
+
+  /**
+   * Retorna a instância de ChangePasswordUseCase
+   * Resolve o erro: "getChangePasswordUseCase is not a function"
+   */
+  getChangePasswordUseCase() {
+    if (!this._changePasswordUseCase) {
+      this._changePasswordUseCase = new ChangePasswordUseCase(
+        this.getUserRepository(),
+        this.getRefreshTokenRepository()
+      );
+    }
+    return this._changePasswordUseCase;
+  }
+
+  /**
+   * Retorna a instância de RefreshAccessTokenUseCase
+   */
+  getRefreshAccessTokenUseCase() {
+    if (!this._refreshAccessTokenUseCase) {
+      this._refreshAccessTokenUseCase = new RefreshAccessTokenUseCase(
+        this.getUserRepository(),
+        this.getRefreshTokenRepository()
+      );
+    }
+    return this._refreshAccessTokenUseCase;
   }
 }
 
+// Exporta uma única instância (Singleton)
 module.exports = new AuthContainer();
 --- END FILE ---
 
@@ -4859,6 +4898,55 @@ class UserContainer {
 }
 
 module.exports = new UserContainer();
+--- END FILE ---
+
+--------------------------------------------------------------------------------
+FILE: src/infrastructure/database/index.js
+--------------------------------------------------------------------------------
+const Sequelize = require('sequelize');
+const path = require('path');
+const config = require('../config/database');
+const env = process.env.NODE_ENV || 'development';
+const dbConfig = config[env];
+
+const sequelize = new Sequelize(
+  dbConfig.database,
+  dbConfig.username,
+  dbConfig.password,
+  dbConfig
+);
+
+const db = {};
+
+// O caminho real dos seus modelos conforme a auditoria:
+// src/infrastructure/repositories/models
+const modelsPath = path.join(__dirname, '..', 'repositories', 'models');
+
+// Importação manual garantindo que o Node ache os arquivos
+db.User = require(path.join(modelsPath, 'User'))(sequelize);
+db.RefreshToken = require(path.join(modelsPath, 'RefreshToken'))(sequelize);
+db.Flag = require(path.join(modelsPath, 'Flag'))(sequelize);
+db.Client = require(path.join(modelsPath, 'Client'))(sequelize);
+db.ClientFlag = require(path.join(modelsPath, 'ClientFlag'))(sequelize);
+db.ClientDocument = require(path.join(modelsPath, 'ClientDocument'))(sequelize);
+db.ClientBankAccount = require(path.join(modelsPath, 'ClientBankAccount'))(sequelize);
+db.Sale = require(path.join(modelsPath, 'Sale'))(sequelize);
+db.SaleFlag = require(path.join(modelsPath, 'SaleFlag'))(sequelize);
+db.Machine = require(path.join(modelsPath, 'Machine'))(sequelize);
+db.Plan = require(path.join(modelsPath, 'Plan'))(sequelize);
+db.PlanFlag = require(path.join(modelsPath, 'PlanFlag'))(sequelize);
+
+// Associações
+Object.keys(db).forEach((modelName) => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
+});
+
+db.sequelize = sequelize;
+db.Sequelize = Sequelize;
+
+module.exports = db;
 --- END FILE ---
 
 --------------------------------------------------------------------------------
@@ -5806,7 +5894,7 @@ module.exports = {
         allowNull: false,
       },
       token_hash: {
-        type: Sequelize.STRING,
+        type: Sequelize.TEXT,
         allowNull: false,
       },
       expires_at: {
@@ -7079,7 +7167,7 @@ module.exports = (sequelize) => {
       allowNull: false,
     },
     token_hash: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
       allowNull: false,
     },
     expires_at: {
@@ -7384,11 +7472,6 @@ class RefreshTokenRepository {
    * @param {Object} RefreshTokenModel - O modelo Sequelize
    */
   constructor(RefreshTokenModel) {
-    console.log('--- DEBUG REPOSITORY ---');
-  console.log('Valor recebido no constructor:', RefreshTokenModel);
-    if (!RefreshTokenModel) {
-      console.error('\x1b[31m%s\x1b[0m', '[ERROR] RefreshTokenModel não foi injetado no RefreshTokenRepository!');
-    }
     this.RefreshTokenModel = RefreshTokenModel;
   }
 
@@ -7453,23 +7536,24 @@ class RefreshTokenRepository {
    * Buscar token válido e não revogado
    */
   async findByToken(token) {
-    try {
-      const refreshToken = await this.RefreshTokenModel.findOne({
-        where: {
-          token_hash: token,
-          revoked: false,
-        },
-      });
+  try {
+    const { Op } = require('sequelize');
+    const refreshToken = await this.RefreshTokenModel.findOne({
+      where: {
+        token_hash: token,
+        revoked: false,
+        expires_at: {
+          [Op.gt]: new Date() // Garante que a data de expiração é maior que 'agora'
+        }
+      },
+    });
 
-      return refreshToken;
-    } catch (error) {
-      logger.error(
-        { error: error.message },
-        '[RefreshTokenRepository.findByToken] Erro ao buscar token'
-      );
-      throw error;
-    }
+    return refreshToken;
+  } catch (error) {
+    logger.error({ error: error.message }, '[RefreshTokenRepository.findByToken] Erro');
+    throw error;
   }
+}
 
   /**
    * Verificar se token expirou
@@ -7762,7 +7846,8 @@ class UserRepository extends IUserRepository {
         ],
         raw: false,
       });
-      return user;
+      if (!user) return null;
+      return this.modelToEntity(user);
     } catch (error) {
       logger.error('[UserRepository.findByEmail] Erro:', error.message);
       throw error;
@@ -7796,7 +7881,8 @@ class UserRepository extends IUserRepository {
         ],
         raw:false,
       });
-      return user;
+      if (!user) return null;
+      return this.modelToEntity(user);
     } catch (error) {
       logger.error('[UserRepository.findById] Erro:', error.message);
       throw error;
@@ -7884,10 +7970,11 @@ class UserRepository extends IUserRepository {
         offset,
       });
 
+      const entities = rows.map(model => this.modelToEntity(model));
       const totalPages = Math.ceil(count / limit);
 
       return {
-        data: rows,
+        data:entities,
         total: count,
         page,
         limit,
@@ -8029,139 +8116,6 @@ class UserRepository extends IUserRepository {
 }
 
 module.exports = UserRepository;
---- END FILE ---
-
---------------------------------------------------------------------------------
-FILE: src/infrastructure/services/AuthService.js
---------------------------------------------------------------------------------
-const { User } = require('../../infrastructure/repositories/models');
-const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../../shared/utils/auth');
-const AppError = require('../../shared/utils/AppError');
-const logger = require('../../infrastructure/config/logger');
-const refreshTokenService = require('./RefreshTokenService');
-
-class AuthService {
-  async login(email, password) {
-    const user = await this._findUserByEmail(email);
-    this._validateUser(user, email);
-    await this._validatePassword(user, password);
-
-    const isFirstLogin = user.last_login_at === null;
-    const tokenPayload = { sub: user.id, role: user.role };
-
-    const token = generateToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
-
-    await refreshTokenService.revokeAllForUser(user.id);
-    await refreshTokenService.create(user.id, refreshToken);
-
-    if (!isFirstLogin) {
-      await user.update({ last_login_at: new Date() }, { hooks: false });
-    }
-
-    logger.info(
-      { userId: user.id, role: user.role, firstLogin: isFirstLogin },
-      isFirstLogin ? 'Primeiro login — troca de senha obrigatória.' : 'Login realizado com sucesso.'
-    );
-
-    return {
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      token,
-      refreshToken,
-      mustChangePassword: isFirstLogin,
-    };
-  }
-
-  async changePassword(userId, currentPassword, newPassword) {
-    const user = await this._findUserByIdWithPassword(userId);
-    if (!user || !user.is_active) {
-      throw new AppError('Usuário não encontrado ou inativo.', 404);
-    }
-
-    await this._validatePassword(user, currentPassword);
-    await this._preventSamePassword(user, newPassword);
-
-    const isFirstLogin = user.last_login_at === null;
-
-    await user.update({
-      password: newPassword,
-      last_login_at: isFirstLogin ? new Date() : user.last_login_at,
-    });
-
-    await refreshTokenService.revokeAllForUser(userId);
-
-    logger.info({ userId, firstLogin: isFirstLogin }, isFirstLogin
-      ? 'Senha do primeiro login alterada. last_login_at definido.'
-      : 'Senha alterada com sucesso.');
-
-    return {
-      message: isFirstLogin
-        ? 'Senha alterada com sucesso. Bem-vindo ao sistema!'
-        : 'Senha alterada com sucesso.',
-    };
-  }
-
-  async refreshAccessToken(refreshToken) {
-    const decoded = verifyRefreshToken(refreshToken);
-    if (!decoded.sub) throw new AppError('Token inválido.', 401);
-
-    const storedToken = await refreshTokenService.findValidToken(decoded.sub, refreshToken);
-    if (!storedToken) throw new AppError('Refresh token inválido ou expirado.', 401);
-
-    const user = await User.findByPk(decoded.sub, { attributes: ['id', 'role', 'is_active'] });
-    if (!user || !user.is_active) throw new AppError('Usuário inválido.', 401);
-
-    const newToken = generateToken({ sub: user.id, role: user.role });
-    const newRefreshToken = generateRefreshToken({ sub: user.id, role: user.role });
-
-    await refreshTokenService.rotate(user.id, refreshToken, newRefreshToken);
-
-    return { token: newToken, refreshToken: newRefreshToken };
-  }
-
-  // ========== Métodos privados ==========
-
-  async _findUserByEmail(email) {
-    if (!email) throw new AppError('E-mail é obrigatório.', 400);
-    return await User.findOne({
-      where: { email: email.toLowerCase().trim() },
-      attributes: ['id', 'name', 'email', 'password', 'role', 'is_active', 'last_login_at'],
-    });
-  }
-
-  async _findUserByIdWithPassword(userId) {
-    return await User.findByPk(userId, {
-      attributes: ['id', 'password', 'is_active', 'last_login_at'],
-    });
-  }
-
-  _validateUser(user, email) {
-    if (!user) {
-      logger.warn({ email }, 'Tentativa de login com usuário inexistente');
-      throw new AppError('E-mail ou senha incorretos.', 401);
-    }
-    if (!user.is_active) {
-      throw new AppError('Conta desativada. Entre em contato com o administrador.', 403);
-    }
-  }
-
-  async _validatePassword(user, password) {
-    const passwordMatch = await user.checkPassword(password);
-    if (!passwordMatch) {
-      logger.warn({ userId: user.id }, 'Senha inválida');
-      throw new AppError('E-mail ou senha incorretos.', 401);
-    }
-  }
-
-  async _preventSamePassword(user, newPassword) {
-    const isSamePassword = await user.checkPassword(newPassword);
-    if (isSamePassword) {
-      throw new AppError('A nova senha não pode ser igual à senha atual.', 400);
-    }
-  }
-}
-
-module.exports = new AuthService();
 --- END FILE ---
 
 --------------------------------------------------------------------------------
@@ -8911,118 +8865,6 @@ class DocumentService {
 }
 
 module.exports = new DocumentService();
---- END FILE ---
-
---------------------------------------------------------------------------------
-FILE: src/infrastructure/services/FlagService.js
---------------------------------------------------------------------------------
-const { Op } = require('sequelize');
-const { Flag } = require('../repositories/models');
-const CacheService = require('./CacheService');
-const AppError = require('../../shared/utils/AppError');
-const logger = require('../../infrastructure/config/logger');
-
-class FlagService {
-  async listFlags({ page = 1, limit = 20, is_active, search } = {}) {
-    // Cache key única para esta combinação de filtros
-    const cacheKey = `flags:list:${page}:${limit}:${is_active}:${search || 'none'}`;
-    const cached = await CacheService.get(cacheKey);
-    if (cached) return cached;
-
-    const offset = (page - 1) * limit;
-    const where = {};
-    if (is_active !== undefined) where.is_active = is_active;
-    if (search) {
-      where[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { description: { [Op.iLike]: `%${search}%` } },
-      ];
-    }
-
-    const { rows, count } = await Flag.findAndCountAll({
-      where,
-      attributes: ['id', 'name', 'description', 'price', 'is_active', 'created_at'],
-      order: [['name', 'ASC']],
-      limit,
-      offset,
-    });
-
-    const result = {
-      rows,
-      count,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
-    };
-
-    await CacheService.set(cacheKey, result);
-    return result;
-  }
-
-  async getFlagById(id) {
-    const cacheKey = `flags:${id}`;
-    const cached = await CacheService.get(cacheKey);
-    if (cached) return cached;
-
-    const flag = await Flag.findByPk(id, {
-      attributes: ['id', 'name', 'description', 'price', 'is_active', 'created_at', 'updated_at'],
-    });
-    if (!flag) throw new AppError('Bandeira não encontrada.', 404);
-
-    await CacheService.set(cacheKey, flag);
-    return flag;
-  }
-
-  async createFlag({ name, description, price }) {
-    const existing = await Flag.findOne({ where: { name: name.trim() } });
-    if (existing) throw new AppError('Já existe uma bandeira com esse nome.', 409);
-    const flag = await Flag.create({ name: name.trim(), description, price });
-    logger.info({ flagId: flag.id }, 'Bandeira criada.');
-    await this._invalidateCache();
-    return flag;
-  }
-
-  async updateFlag(id, data) {
-    const flag = await Flag.findByPk(id);
-    if (!flag) throw new AppError('Bandeira não encontrada.', 404);
-    if (data.name && data.name.trim() !== flag.name) {
-      const existing = await Flag.findOne({ where: { name: data.name.trim() } });
-      if (existing) throw new AppError('Já existe uma bandeira com esse nome.', 409);
-      data.name = data.name.trim();
-    }
-    await flag.update(data);
-    logger.info({ flagId: id, changes: Object.keys(data) }, 'Bandeira atualizada.');
-    await this._invalidateCache();
-    return flag;
-  }
-
-  async deactivateFlag(id) {
-    const flag = await Flag.findByPk(id);
-    if (!flag) throw new AppError('Bandeira não encontrada.', 404);
-    if (!flag.is_active) throw new AppError('Bandeira já está desativada.', 409);
-    await flag.update({ is_active: false });
-    logger.info({ flagId: id }, 'Bandeira desativada.');
-    await this._invalidateCache();
-    return { message: `Bandeira "${flag.name}" desativada com sucesso.` };
-  }
-
-  async reactivateFlag(id) {
-    const flag = await Flag.findByPk(id);
-    if (!flag) throw new AppError('Bandeira não encontrada.', 404);
-    if (flag.is_active) throw new AppError('Bandeira já está ativa.', 409);
-    await flag.update({ is_active: true });
-    logger.info({ flagId: id }, 'Bandeira reativada.');
-    await this._invalidateCache();
-    return { message: `Bandeira "${flag.name}" reativada com sucesso.` };
-  }
-
-  // ========== Métodos privados ==========
-  async _invalidateCache() {
-    // Remove todas as chaves que começam com "flags:list:" e "flags:"
-    await CacheService.delPattern('flags:*');
-  }
-}
-
-module.exports = new FlagService();
 --- END FILE ---
 
 --------------------------------------------------------------------------------
@@ -9911,191 +9753,6 @@ module.exports = {
   // URLs do Cloudinary não devem ser expostas ao frontend.
   // Use o endpoint GET /api/v1/documents/:id/download como proxy.
 };
---- END FILE ---
-
---------------------------------------------------------------------------------
-FILE: src/infrastructure/services/UserService.js
---------------------------------------------------------------------------------
-const { Op } = require('sequelize');
-const { User } = require('../repositories/models');
-const AppError = require('../../shared/utils/AppError');
-const logger = require('../../infrastructure/config/logger');
-const crypto = require('node:crypto');
-
-class UserService {
-  // ========== Métodos públicos ==========
-
-  async listUsers({ page = 1, limit = 20, role, is_active, search } = {}) {
-    const offset = (page - 1) * limit;
-    const where = {};
-
-    if (role !== undefined) where.role = role;
-    if (is_active !== undefined) {
-      if (typeof is_active === 'string') {
-        where.is_active = is_active === '1' || is_active === 'true';
-      } else {
-        where.is_active = !!is_active;
-      }
-    }
-    if (search) {
-      where[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { email: { [Op.iLike]: `%${search}%` } },
-      ];
-    }
-
-    const { rows, count } = await User.findAndCountAll({
-      where,
-      attributes: ['id', 'name', 'email', 'role', 'is_active', 'last_login_at', 'created_at'],
-      order: [['created_at', 'DESC']],
-      limit,
-      offset,
-    });
-
-    return {
-      rows,
-      count,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
-    };
-  }
-
-  async getUserById(id) {
-    const user = await User.findByPk(id, {
-      attributes: ['id', 'name', 'email', 'role', 'is_active', 'last_login_at', 'created_at', 'updated_at'],
-    });
-    if (!user) throw new AppError('Usuário não encontrado.', 404);
-    return user;
-  }
-
-  async createUser({ name, email, role }) {
-    const existing = await User.findOne({
-      where: { email: email.toLowerCase().trim() },
-      paranoid: false,
-    });
-    if (existing) throw new AppError('E-mail já está em uso.', 409);
-
-    const temporaryPassword = this._generateTempPassword();
-
-    const user = await User.create({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      password: temporaryPassword,
-      role,
-      is_active: true,
-      last_login_at: null,
-    });
-
-    logger.info({ userId: user.id, role: user.role }, 'Usuário criado por admin com senha temporária.');
-
-    // Retorna o objeto JSON (sem a senha)
-    return {
-      user: user.toJSON(),
-      temporaryPassword,
-    };
-  }
-
-  async updateUser(targetId, requesterId, data) {
-    const user = await User.findByPk(targetId);
-    if (!user) throw new AppError('Usuário não encontrado.', 404);
-
-    // Proteções de auto-edição
-    if (targetId === requesterId) {
-      if (data.role !== undefined && data.role !== user.role) {
-        throw new AppError('Você não pode alterar o próprio papel (role).', 403);
-      }
-      if (data.is_active === false) {
-        throw new AppError('Você não pode desativar a própria conta.', 403);
-      }
-    }
-
-    if (data.email && data.email !== user.email) {
-      const emailInUse = await User.findOne({
-        where: { email: data.email.toLowerCase().trim() },
-        paranoid: false,
-      });
-      if (emailInUse) throw new AppError('E-mail já está em uso.', 409);
-      data.email = data.email.toLowerCase().trim();
-    }
-
-    if (data.password === '' || data.password === null || data.password === undefined) {
-      delete data.password;
-    }
-
-    await user.update(data);
-    logger.info({ targetId, requesterId, changes: Object.keys(data) }, 'Usuário atualizado por admin.');
-    return user.toJSON();
-  }
-
-  async updateProfile(userId, data) {
-    const user = await User.findByPk(userId);
-    if (!user) throw new AppError('Usuário não encontrado.', 404);
-
-    const { name } = data;
-    if (!name || !name.trim()) throw new AppError('Nome é obrigatório.', 400);
-
-    await user.update({ name: name.trim() });
-    logger.info({ userId }, 'Usuário atualizou o próprio perfil.');
-    return user.toJSON();
-  }
-
-  async deactivateUser(targetId, requesterId) {
-    if (targetId === requesterId) throw new AppError('Você não pode desativar a própria conta.', 403);
-
-    const user = await User.findByPk(targetId);
-    if (!user) throw new AppError('Usuário não encontrado.', 404);
-    if (!user.is_active) throw new AppError('Usuário já está desativado.', 409);
-
-    await user.update({ is_active: false });
-    logger.info({ targetId, requesterId }, 'Usuário desativado por admin.');
-    return { message: `Usuário "${user.name}" desativado com sucesso.` };
-  }
-
-  async reactivateUser(targetId, requesterId) {
-    if (targetId === requesterId) throw new AppError('Operação inválida sobre a própria conta.', 403);
-
-    const user = await User.findByPk(targetId);
-    if (!user) throw new AppError('Usuário não encontrado.', 404);
-    if (user.is_active) throw new AppError('Usuário já está ativo.', 409);
-
-    await user.update({ is_active: true });
-    logger.info({ targetId, requesterId }, 'Usuário reativado por admin.');
-    return { message: `Usuário "${user.name}" reativado com sucesso.` };
-  }
-
-  async getProfile(userId) {
-    const user = await this.getUserById(userId);
-    return {
-      ...user.toJSON(),
-      mustChangePassword: user.last_login_at === null,
-    };
-  }
-
-  // ========== Métodos privados ==========
-
-  _generateTempPassword() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz';
-    const nums = '0123456789';
-    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const specials = '!@#$%';
-
-    const randomStr = (src, len) => {
-      return Array.from({ length: len }, () => {
-        const randomIndex = crypto.randomInt(0, src.length);
-        return src[randomIndex];
-      }).join('');
-    };
-
-    const part1 = randomStr(upper, 1);
-    const part2 = randomStr(chars, 4);
-    const part3 = randomStr(nums, 4);
-    const part4 = randomStr(specials, 1);
-
-    return `${part1}${part2}-${part3}${part4}`;
-  }
-}
-
-module.exports = new UserService();
 --- END FILE ---
 
 --------------------------------------------------------------------------------
@@ -11875,6 +11532,7 @@ router.post(
 router.patch(
   '/change-password',
   authMiddleware,
+  authLimiter,
   validate(changePasswordSchema, 'body'),
   AuthController.changePassword
 );
@@ -13189,6 +12847,7 @@ FILE: src/interfaces/http/routes/userRoutes.js
  */
 
 const { Router } = require('express');
+const { ROLES } = require('../../../shared/constants/roles')
 const UserController = require('../controllers/UserController');
 const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
 const { validate } = require('../middlewares/validationMiddleware');
@@ -13299,7 +12958,7 @@ router.use(authMiddleware);
 
 // ─── Rotas administrativas ────────────────────────────────────────────────────
 // A partir daqui, apenas admin tem acesso.
-router.use(authorize('admin'));
+router.use(authorize(ROLES.ADMIN));
 
 /**
  * @swagger
@@ -13324,7 +12983,7 @@ router.use(authorize('admin'));
  *         name: role
  *         schema:
  *           type: string
- *           enum: [admin, user]
+ *           enum: [admin, user, partner]
  *       - in: query
  *         name: is_active
  *         schema:
@@ -13388,7 +13047,7 @@ router.get(
  *                 format: email
  *               role:
  *                 type: string
- *                 enum: [admin, user]
+ *                 enum: [admin, user, partner]
  *     responses:
  *       201:
  *         description: Usuário criado com sucesso.
@@ -13428,7 +13087,7 @@ router.post(
  *                 format: email
  *               role:
  *                 type: string
- *                 enum: [admin, user]
+ *                 enum: [admin, user, partner]
  *               is_active:
  *                 type: boolean
  *     responses:
@@ -13523,23 +13182,27 @@ const loginSchema = yup.object({
     .transform((value) => (value ? value.toLowerCase() : value)),
   password: yup
     .string()
-    .required('Senha é obrigatória.'),
+    .required('Senha é obrigatória.')
+    .trim(),
 });
 
 // ─── Troca de Senha ───────────────────────────────────────────────────────────
 const changePasswordSchema = yup.object({
   currentPassword: yup
     .string()
-    .required('Senha atual é obrigatória.'),
+    .required('Senha atual é obrigatória.')
+    .trim(),
   newPassword: yup
     .string()
     .required('Nova senha é obrigatória.')
     .min(8, STRONG_PASSWORD_MESSAGE)
-    .matches(STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE),
+    .matches(STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE)
+    .trim(),
   confirmPassword: yup
     .string()
     .required('Confirmação de senha é obrigatória.')
-    .oneOf([yup.ref('newPassword')], 'As senhas não coincidem.'),
+    .oneOf([yup.ref('newPassword')], 'As senhas não coincidem.')
+    .trim(),
 });
 
   const refreshSchema = yup.object({
@@ -14340,6 +14003,7 @@ module.exports = {
 FILE: src/interfaces/http/validators/userValidators.js
 --------------------------------------------------------------------------------
 const yup = require('yup');
+const { ROLES } = require('../../../shared/constants/roles')
 
 const { STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE } = require('./authValidators');
 
@@ -14364,7 +14028,7 @@ const createUserSchema = yup.object({
   role: yup
     .string()
     .required('Papel (role) é obrigatório.')
-    .oneOf(['admin', 'user', 'partner'], 'Role inválido. Use: admin, user ou partner.'),
+    .oneOf(Object.values(ROLES), `Role inválido. Use: ${Object.values(ROLES).join(', ')}.`),
 }).noUnknown(true).strict();
 
 // ─── Atualizar usuário (admin) ────────────────────────────────────────────────
@@ -14381,7 +14045,7 @@ const updateUserSchema = yup.object({
 
   role: yup
     .string()
-    .oneOf(['admin', 'user', 'partner'], 'Role inválido.')
+    .oneOf(Object.values(ROLES), 'Role inválido.')
     .optional(),
 
   is_active: yup
@@ -14499,7 +14163,7 @@ const listUsersQuerySchema = yup.object({
 
   limit: yup.number().integer().min(1).max(100).default(20).optional(),
 
-  role: yup.string().oneOf(['admin', 'user', 'partner']).optional(),
+  role: yup.string().oneOf(Object.values(ROLES)).optional(),
 
   is_active: yup.boolean().optional(),
 
