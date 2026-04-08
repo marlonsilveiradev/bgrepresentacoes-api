@@ -16,6 +16,12 @@ class IFlagRepository {
    * @param {string} id - UUID da flag
    * @returns {Promise<Flag|null>}
    */
+
+  /**
+   * Buscar múltiplas flags por IDs (uma única query)
+   * @param {string[]} ids - Array de IDs de bandeiras
+   * @returns {Promise<Flag[]>} Array com as bandeiras encontradas
+   */
   async findById(id) {
     throw new Error('Método findById não implementado');
   }

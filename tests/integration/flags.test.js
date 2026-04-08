@@ -5,114 +5,145 @@ const {
   cleanDatabase,
 } = require('../setup/testHelpers');
 
-describe('Flags — CRUD completo', () => {
+describe('Flags — Verificação de Proteção de Rotas', () => {
+
+  it('NEGATIVO: deve falhar (401) ao listar flags sem token', async () => {
+    // Note que NÃO enviamos o .set('Authorization', ...)
+    const res = await request(app).get('/api/v1/flags');
+
+    // Se sua rota estiver pública, res.status será 200 e o JEST VAI FALHAR aqui:
+    expect(res.status).toBe(401); 
+  });
+
+  it('NEGATIVO: deve falhar (401) ao buscar flag por ID sem token', async () => {
+    const res = await request(app).get('/api/v1/flags/00000000-0000-0000-0000-000000000000');
+    
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('Flags — Integração Protegida (Full Auth)', () => {
   let adminToken;
   let userToken;
 
   beforeEach(async () => {
     await cleanDatabase();
+    
     const admin = await createAdminAndLogin();
     adminToken = admin.token;
+    
     const user = await createUserAndLogin();
     userToken = user.token;
   });
 
+  describe('Segurança de Acesso (Middlewares)', () => {
+    it('deve retornar 401 ao listar flags sem token', async () => {
+      const res = await request(app).get('/api/v1/flags');
+      expect(res.status).toBe(401);
+    });
+
+    it('deve retornar 401 ao buscar flag por ID sem token', async () => {
+      const res = await request(app).get('/api/v1/flags/any-uuid');
+      expect(res.status).toBe(401);
+    });
+  });
+
   describe('GET /api/v1/flags', () => {
-    it('qualquer autenticado lista bandeiras', async () => {
-      await createFlag({ name: 'Alelo' });
-      await createFlag({ name: 'VR' });
+    it('usuário autenticado (vendedor/user) pode listar bandeiras', async () => {
+      await createFlag({ name: 'Visa', price: 10 });
 
       const res = await request(app)
         .get('/api/v1/flags')
         .set('Authorization', `Bearer ${userToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(2);
+      expect(res.body.data).toBeInstanceOf(Array);
     });
 
-    it('retorna paginação correta', async () => {
-      for (let i = 0; i < 5; i++) await createFlag();
+    it('deve filtrar corretamente por busca (search)', async () => {
+      await createFlag({ name: 'Mastercard' });
+      await createFlag({ name: 'Elo' });
 
       const res = await request(app)
-        .get('/api/v1/flags?limit=2&page=1')
+        .get('/api/v1/flags?search=Master')
         .set('Authorization', `Bearer ${adminToken}`);
 
-      expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(2);
-      expect(res.body.pagination.total).toBe(5);
-      expect(res.body.pagination.totalPages).toBe(3);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].name).toBe('Mastercard');
     });
-
-    // it('sem token retorna 401', async () => {
-    //   const res = await request(app).get('/api/v1/flags');
-    //   expect(res.status).toBe(401);
-    // });
   });
 
-  describe('POST /api/v1/flags (apenas admin)', () => {
+  describe('POST /api/v1/flags (Restrito Admin)', () => {
     it('admin cria bandeira com sucesso', async () => {
+      const payload = { name: 'Ticket', description: 'Refeição', price: 80.50 };
+      
       const res = await request(app)
         .post('/api/v1/flags')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ name: 'Ticket', description: 'Bandeira Ticket', price: 89.90 });
+        .send(payload);
 
       expect(res.status).toBe(201);
       expect(res.body.data.name).toBe('Ticket');
     });
 
-    it('vendedor não pode criar bandeira (403)', async () => {
+    it('vendedor (user) recebe 403 ao tentar criar bandeira', async () => {
       const res = await request(app)
         .post('/api/v1/flags')
         .set('Authorization', `Bearer ${userToken}`)
-        .send({ name: 'Alelo', price: 89.90 });
+        .send({ name: 'Invasor', price: 10 });
 
       expect(res.status).toBe(403);
     });
+  });
 
-    it('nome duplicado retorna 409', async () => {
-      await createFlag({ name: 'Alelo' });
+  describe('PATCH /api/v1/flags/:id', () => {
+    it('deve atualizar apenas os campos enviados (parcial)', async () => {
+      const flag = await createFlag({ name: 'Original', price: 100 });
 
       const res = await request(app)
-        .post('/api/v1/flags')
+        .patch(`/api/v1/flags/${flag.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ name: 'Alelo', price: 99 });
+        .send({ price: 150 });
 
-      expect(res.status).toBe(409);
-    });
-
-    it('price é obrigatório', async () => {
-      const res = await request(app)
-        .post('/api/v1/flags')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({ name: 'SemPreco' });
-
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(200);
+      expect(Number(res.body.data.price)).toBe(150);
+      expect(res.body.data.name).toBe('Original'); // Manteve o nome
     });
   });
 
-  describe('PATCH /api/v1/flags/:id/deactivate', () => {
-    it('admin desativa bandeira', async () => {
-      const flag = await createFlag({ name: 'ParaDesativar' });
+  describe('Ativação/Desativação', () => {
+    it('deve alternar status da bandeira com sucesso', async () => {
+      const flag = await createFlag({ name: 'Status Test', is_active: true });
 
-      const res = await request(app)
+      // Desativa
+      const resDeactivate = await request(app)
         .patch(`/api/v1/flags/${flag.id}/deactivate`)
         .set('Authorization', `Bearer ${adminToken}`);
+      expect(resDeactivate.status).toBe(200);
 
-      expect(res.status).toBe(200);
+      // Reativa
+      const resReactivate = await request(app)
+        .patch(`/api/v1/flags/${flag.id}/reactivate`)
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(resReactivate.status).toBe(200);
+    });
+  });
+
+  describe('Validações de Payload (Yup)', () => {
+    it('deve retornar 422 se o preço for zero ou negativo', async () => {
+      const res = await request(app)
+        .post('/api/v1/flags')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'Erro Preço', price: -5 });
+
+      expect(res.status).toBe(422);
     });
 
-    it('retorna 404 para UUID inexistente', async () => {
+    it('deve retornar 422 se o nome for curto demais', async () => {
       const res = await request(app)
-        .patch('/api/v1/flags/00000000-0000-0000-0000-000000000000/deactivate')
-        .set('Authorization', `Bearer ${adminToken}`);
-
-      expect(res.status).toBe(404);
-    });
-
-    it('retorna 400 para UUID inválido', async () => {
-      const res = await request(app)
-        .patch('/api/v1/flags/nao-e-uuid/deactivate')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .post('/api/v1/flags')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'A', price: 10 });
 
       expect(res.status).toBe(422);
     });

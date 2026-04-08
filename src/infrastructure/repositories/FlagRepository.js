@@ -15,6 +15,7 @@
  */
 
 const { Op } = require('sequelize');
+const logger = require('../../config/logger');
 const Flag = require('../../domain/entities/Flag');
 const IFlagRepository = require('../../domain/interfaces/IFlagRepository');
 const { Flag: FlagModel } = require('./models');
@@ -35,6 +36,40 @@ class FlagRepository extends IFlagRepository {
       return this.modelToEntity(model);
     } catch (error) {
       console.error('[FlagRepository.findById] Erro:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Buscar múltiplas flags em UMA ÚNICA query
+   * @param {string[]} ids - Array de IDs
+   * @returns {Promise<Flag[]>}
+   */
+  async findByIds(ids) {
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return [];
+      }
+
+      // ✅ Sequelize: findAll com WHERE IN
+      const flags = await this.FlagModel.findAll({
+        where: {
+          id: ids,  // ✅ Sequelize converte para WHERE id IN (?, ?, ...)
+        },
+        attributes: ['id', 'name', 'is_active', 'created_at'],
+      });
+
+      logger.debug(
+        { foundCount: flags.length, requestedCount: ids.length },
+        '[FlagRepository.findByIds] Flags recuperadas'
+      );
+
+      return flags;
+    } catch (error) {
+      logger.error(
+        { error: error.message, idCount: ids.length },
+        '[FlagRepository.findByIds]'
+      );
       throw error;
     }
   }

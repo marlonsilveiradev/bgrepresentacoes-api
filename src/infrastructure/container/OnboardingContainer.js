@@ -1,143 +1,72 @@
 /**
- * CONTAINER: Onboarding Dependencies
+ * CONTAINER: Onboarding
  * 
- * Injeção de dependências centralizada para Onboarding
- * Responsabilidade: Instanciar e injetar todos os use cases atômicos
+ * Responsabilidade: Injetar TODAS as dependências para onboarding
  * 
- * Padrão: Dependency Injection
- * Benefício: Fácil mockar em testes, centralizar dependências
+ * ✅ AGORA COM:
+ * - clientDocumentRepository (NOVO!)
+ * - storageRepository (NOVO!)
+ * - ProcessClientDocumentsUseCase
+ * - CreateClientUseCase
  */
 
-const { UserRepository, RefreshTokenRepository } = require('../repositories');
-const {
-  ValidatePlanOrFlagsUseCase,
-  CreateClientUseCase,
-  CreateBankAccountUseCase,
-  CreateSaleUseCase,
-  AssociateFlagsUseCase,
-  ProcessDocumentsUseCase,
-  OnboardClientUseCase,
-} = require('../../application/use-cases/onboarding');
+const CreateClientUseCase = require('../../application/use-cases/onboarding/CreateClientUseCase');
+const ProcessClientDocumentsUseCase = require('../../application/use-cases/onboarding/ProcessClientDocumentsUseCase');
+const StorageRepository = require('../repositories/StorageRepository');
+const logger = require('../config/logger');
 
 class OnboardingContainer {
-  constructor() {
-    // ═══════════════════════════════════════════════════════════
-    // INSTANCIAR REPOSITÓRIOS (singleton)
-    // ═══════════════════════════════════════════════════════════
-    this.userRepository = new UserRepository();
-    this.refreshTokenRepository = new RefreshTokenRepository();
+  constructor(
+    clientRepository,
+    planRepository,
+    flagRepository,
+    clientFlagRepository,
+    clientBankAccountRepository,
+    clientDocumentRepository,  // ✅ ADICIONADO
+    sequelize
+  ) {
+    this.clientRepository = clientRepository;
+    this.planRepository = planRepository;
+    this.flagRepository = flagRepository;
+    this.clientFlagRepository = clientFlagRepository;
+    this.clientBankAccountRepository = clientBankAccountRepository;
+    this.clientDocumentRepository = clientDocumentRepository;  // ✅ ARMAZENADO
+    this.sequelize = sequelize;
 
-    // ═══════════════════════════════════════════════════════════
-    // INSTANCIAR USE CASES ATÔMICOS (singleton)
-    // ═══════════════════════════════════════════════════════════
+    // ✅ Instanciar StorageRepository
+    this.storageRepository = new StorageRepository();
 
-    /**
-     * USE CASE: Validar Plano ou Bandeiras
-     * Dependências: nenhuma (queries ao BD via models diretamente)
-     */
-    this.validatePlanOrFlagsUseCase = new ValidatePlanOrFlagsUseCase();
-
-    /**
-     * USE CASE: Criar Cliente
-     * Dependências: nenhuma (queries ao BD via models diretamente)
-     */
-    this.createClientUseCase = new CreateClientUseCase();
-
-    /**
-     * USE CASE: Criar Conta Bancária
-     * Dependências: nenhuma (queries ao BD via models diretamente)
-     */
-    this.createBankAccountUseCase = new CreateBankAccountUseCase();
-
-    /**
-     * USE CASE: Criar Venda
-     * Dependências: nenhuma (queries ao BD via models diretamente)
-     */
-    this.createSaleUseCase = new CreateSaleUseCase();
-
-    /**
-     * USE CASE: Associar Bandeiras
-     * Dependências: nenhuma (queries ao BD via models diretamente)
-     */
-    this.associateFlagsUseCase = new AssociateFlagsUseCase();
-
-    /**
-     * USE CASE: Processar Documentos
-     * Dependências: StorageService (upload para Cloudinary)
-     */
-    this.processDocumentsUseCase = new ProcessDocumentsUseCase();
-
-    /**
-     * USE CASE: Onboard Client (MAESTRIA)
-     * Orquestra todos os use cases atômicos acima
-     * Dependências: Todos os use cases atômicos
-     */
-    this.onboardClientUseCase = new OnboardClientUseCase();
+    logger.info(
+      '[OnboardingContainer] Inicializado com TODAS as dependências'
+    );
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // GETTERS: Recuperar use cases
-  // ═══════════════════════════════════════════════════════════
-
   /**
-   * Obter use case principal de onboarding
-   * @returns {OnboardClientUseCase}
+   * Obter ProcessClientDocumentsUseCase
    */
-  getOnboardClientUseCase() {
-    return this.onboardClientUseCase;
+  getProcessClientDocumentsUseCase() {
+    return new ProcessClientDocumentsUseCase(
+      this.clientDocumentRepository,  // ✅ AGORA INJETADO
+      this.storageRepository
+    );
   }
 
   /**
-   * Obter use case de validação
-   * @returns {ValidatePlanOrFlagsUseCase}
-   */
-  getValidatePlanOrFlagsUseCase() {
-    return this.validatePlanOrFlagsUseCase;
-  }
-
-  /**
-   * Obter use case de criação de cliente
-   * @returns {CreateClientUseCase}
+   * Obter CreateClientUseCase com TODAS as dependências
    */
   getCreateClientUseCase() {
-    return this.createClientUseCase;
-  }
-
-  /**
-   * Obter use case de criação de conta bancária
-   * @returns {CreateBankAccountUseCase}
-   */
-  getCreateBankAccountUseCase() {
-    return this.createBankAccountUseCase;
-  }
-
-  /**
-   * Obter use case de criação de venda
-   * @returns {CreateSaleUseCase}
-   */
-  getCreateSaleUseCase() {
-    return this.createSaleUseCase;
-  }
-
-  /**
-   * Obter use case de associação de bandeiras
-   * @returns {AssociateFlagsUseCase}
-   */
-  getAssociateFlagsUseCase() {
-    return this.associateFlagsUseCase;
-  }
-
-  /**
-   * Obter use case de processamento de documentos
-   * @returns {ProcessDocumentsUseCase}
-   */
-  getProcessDocumentsUseCase() {
-    return this.processDocumentsUseCase;
+    return new CreateClientUseCase(
+      this.clientRepository,
+      this.planRepository,
+      this.flagRepository,
+      this.clientFlagRepository,
+      this.clientBankAccountRepository,
+      this.clientDocumentRepository,  // ✅ ADICIONADO
+      this.getProcessClientDocumentsUseCase(),
+      this.storageRepository,  // ✅ ADICIONADO
+      this.sequelize
+    );
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// EXPORTAR SINGLETON
-// ═══════════════════════════════════════════════════════════
-
-module.exports = new OnboardingContainer();
+module.exports = OnboardingContainer;
