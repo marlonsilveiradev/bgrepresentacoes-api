@@ -9,6 +9,7 @@
 
 const Flag = require('../../../domain/entities/Flag');
 const AppError = require('../../../shared/utils/AppError');
+const logger = require('../../../infrastructure/config/logger');
 const CacheService = require('../../../infrastructure/services/CacheService');
 const { v4: uuid } = require('uuid');
 
@@ -41,7 +42,7 @@ class CreateFlagUseCase {
     // ✅ LIMPEZA DE CACHE: Invalidar lista de flags
     await this._invalidateListCache();
 
-    console.log('[CreateFlagUseCase] Flag criada:', savedFlag.id);
+    logger.debug('[CreateFlagUseCase] Flag criada:', savedFlag.id);
 
     return savedFlag;
   }

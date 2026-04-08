@@ -1,7 +1,7 @@
 ================================================================================
   ENTERPRISE ARCHITECT REPORT - AUDITORIA COMPLETA
   Projeto: Backend API
-  Data: 2026-04-06_22-32-21
+  Data: 2026-04-07_23-48-11
 ================================================================================
 
 ###############################################################################
@@ -73,6 +73,7 @@ src
 |       |   |-- CreateClientUseCase.js
 |       |   |-- CreateSaleUseCase.js
 |       |   |-- OnboardClientUseCase.js
+|       |   |-- ProcessClientDocumentsUseCase.js
 |       |   |-- ProcessDocumentsUseCase.js
 |       |   |-- ValidatePlanOrFlagsUseCase.js
 |       |   `-- index.js
@@ -95,9 +96,12 @@ src
 |   |   |-- User.js
 |   |   `-- index.js
 |   |-- interfaces
+|   |   |-- IClientDocumentRepository.js
+|   |   |-- IClientRepository.js
 |   |   |-- IFlagRepository.js
 |   |   |-- IRefreshTokenRepository.js
 |   |   |-- IReportRepository.js
+|   |   |-- IStorageRepository.js
 |   |   |-- IUserRepository.js
 |   |   `-- index.js
 |   `-- value-objects
@@ -120,7 +124,6 @@ src
 |   |-- database
 |   |   |-- index.js
 |   |   |-- migrations
-|   |   |   |-- 20260101000000-create-machines-table.js
 |   |   |   |-- 20260310000001-create-users.js
 |   |   |   |-- 20260310000002-create-flags.js
 |   |   |   |-- 20260310000003-create-plans.js
@@ -142,6 +145,7 @@ src
 |   |   |-- FlagRepository.js
 |   |   |-- RefreshTokenRepository.js
 |   |   |-- ReportRepository.js
+|   |   |-- StorageRepository.js
 |   |   |-- UserRepository.js
 |   |   |-- index.js
 |   |   `-- models
@@ -204,6 +208,7 @@ src
 |       |   `-- userRoutes.js
 |       `-- validators
 |           |-- authValidators.js
+|           |-- brazilianStates.js
 |           |-- clientValidators.js
 |           |-- flagValidators.js
 |           |-- onboardingValidator.js
@@ -226,7 +231,7 @@ src
         |-- tokenHash.js
         `-- validateEnv.js
 
-46 directories, 171 files
+46 directories, 176 files
 
 ###############################################################################
 # SEÇÃO 2: DETECÇÃO DE PADRÕES E TECNOLOGIAS
@@ -248,17 +253,17 @@ src
 ###############################################################################
 # SEÇÃO 3: ALERTAS CRÍTICOS
 ###############################################################################
-Console.log em produção: [0;31mENCONTRADOS (27)[0m
+Console.log em produção: [0;31mENCONTRADOS (7)[0m
 Try/Catch ausente em async: OK
 Uploads sem validação: [1;33mVerificar manualmente[0m
 
 ###############################################################################
 # SEÇÃO 4: MÉTRICAS
 ###############################################################################
-Total de arquivos JS: 172
+Total de arquivos JS: 177
 Controllers: 10
 Services: 10
-Repositories: 18
+Repositories: 19
 Middlewares: 7
 
 ###############################################################################
@@ -274,8 +279,8 @@ Controllers chamando DB diretamente:
 Possível SQL Injection:
 src/infrastructure/database/migrations/20260310000001-create-users.js:    await queryInterface.sequelize.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
 src/infrastructure/database/migrations/20260310000001-create-users.js:    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_users_role";');
-src/infrastructure/database/migrations/20260310000004-create-clients.js:    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_clients_overall_status";');
-src/infrastructure/database/migrations/20260310000004-create-clients.js:    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_clients_benefit_type";');
+src/infrastructure/database/migrations/20260310000004-create-clients.js:    await queryInterface.sequelize.query(
+src/infrastructure/database/migrations/20260310000004-create-clients.js:    await queryInterface.sequelize.query(
 src/infrastructure/database/migrations/20260310000006-create-client-flags.js:        await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_client_flags_status";');
 src/infrastructure/database/migrations/20260310000007-create-client-documents.js:        await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_client_documents_document_type";');
 src/infrastructure/database/migrations/20260310000010-create-client-bank-accounts.js:    await queryInterface.sequelize.query(
@@ -290,7 +295,10 @@ src/interfaces/http/controllers/ClientController.js:  const updateData = req.bod
 src/interfaces/http/controllers/ClientFlagController.js:  const { status, notes } = req.body;
 src/interfaces/http/controllers/FlagController.js:    const createDTO = new CreateFlagDTO(req.body);
 src/interfaces/http/controllers/FlagController.js:    const updateDTO = new UpdateFlagDTO(req.body);
-src/interfaces/http/controllers/OnboardingController.js:    const dto = OnboardClientDTO.validate(req.body);
+src/interfaces/http/controllers/OnboardingController.js:          cnpj: req.body.cnpj,
+src/interfaces/http/controllers/OnboardingController.js:          email: req.body.email,
+src/interfaces/http/controllers/OnboardingController.js:      const onboardingDTO = this._prepareOnboardingDTO(req.body);
+src/interfaces/http/controllers/OnboardingController.js:          cnpj: req.body?.cnpj,
 src/interfaces/http/controllers/PlanController.js:  const plan = await PlanService.createPlan(req.body);
 src/interfaces/http/controllers/PlanController.js:  const plan = await PlanService.updatePlan(req.params.id, req.body);
 src/interfaces/http/controllers/SaleController.js:  const sale = await SaleService.createSale(req.user, req.body);
@@ -320,7 +328,44 @@ Rotas encontradas:
 grep: src/routes: No such file or directory
 
 Uploads:
+src/application/use-cases/onboarding/CreateClientUseCase.js:   * 3. Processar documentos (upload + validação)
+src/application/use-cases/onboarding/CreateClientUseCase.js:   * 11. Em caso de erro: ROLLBACK + cleanup todos os uploads
+src/application/use-cases/onboarding/CreateClientUseCase.js:    let uploadedPublicIds = [];        // Arquivos NOVOS (deletar se erro)
+src/application/use-cases/onboarding/CreateClientUseCase.js:          uploadedPublicIds = docResult.uploadedPublicIds;
+src/application/use-cases/onboarding/CreateClientUseCase.js:        // ✅ PASSO 10: Cleanup - Deletar TODOS os uploads novos (erro = não salvar no banco)
+src/application/use-cases/onboarding/CreateClientUseCase.js:        if (uploadedPublicIds.length > 0) {
+src/application/use-cases/onboarding/CreateClientUseCase.js:            { transactionId, uploadCount: uploadedPublicIds.length },
+src/application/use-cases/onboarding/CreateClientUseCase.js:            '[CreateClientUseCase] Limpando uploads após erro (ROLLBACK)'
+src/application/use-cases/onboarding/CreateClientUseCase.js:          await this._cleanupFailedUploads(uploadedPublicIds, transactionId);
+src/application/use-cases/onboarding/CreateClientUseCase.js:   * ✅ CLEANUP em caso de ERRO - Deletar uploads novos (síncronamente, pois ainda em erro)
+src/application/use-cases/onboarding/CreateClientUseCase.js:  async _cleanupFailedUploads(uploadedPublicIds, transactionId) {
+src/application/use-cases/onboarding/CreateClientUseCase.js:        { transactionId, count: uploadedPublicIds.length },
+src/application/use-cases/onboarding/CreateClientUseCase.js:        '[CreateClientUseCase._cleanupFailedUploads] Deletando uploads falhados'
+src/application/use-cases/onboarding/CreateClientUseCase.js:      const deletePromises = uploadedPublicIds.map(publicId =>
+src/application/use-cases/onboarding/CreateClientUseCase.js:        { transactionId, count: uploadedPublicIds.length },
 src/application/use-cases/onboarding/OnboardClientUseCase.js:      // Processar documentos (fazer upload)
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js: * - Fazer upload para storage
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js: * ✅ Retorna rastreamento de uploads para rollback
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:   * @param {string} params.userId - ID do usuário que está fazendo upload
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:   * @returns {Promise<{documents: Array, uploadedPublicIds: string[]}>}
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:    const uploadedPublicIds = [];
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:          uploadedPublicIds: [],
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:          uploadedPublicIds.push(...result.uploadedPublicIds);
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:        uploadedPublicIds,
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:      // ✅ Limpar uploads em caso de erro
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:      await this._cleanupFailedUploads(uploadedPublicIds, transactionId);
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:      // ✅ PASSO 2: Fazer upload
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:      const uploadResult = await this.storageRepository.upload(
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:        { transactionId, publicId: uploadResult.public_id },
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:        cloudinary_public_id: uploadResult.public_id,
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:        uploaded_by: userId,
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:        uploadedPublicIds: [uploadResult.public_id],
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:   * Limpar uploads falhados
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:  async _cleanupFailedUploads(uploadedPublicIds, transactionId) {
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:    if (!uploadedPublicIds.length) return;
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:      { transactionId, count: uploadedPublicIds.length },
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:      '[ProcessClientDocumentsUseCase] Limpando uploads falhados'
+src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js:    const deletePromises = uploadedPublicIds.map(id =>
 src/application/use-cases/onboarding/ProcessDocumentsUseCase.js: * Faz upload de documentos para Cloudinary
 src/application/use-cases/onboarding/ProcessDocumentsUseCase.js:  async execute(clientId, files, uploadedBy, transaction) {
 src/application/use-cases/onboarding/ProcessDocumentsUseCase.js:    const uploadedPublicIds = [];
@@ -330,13 +375,25 @@ src/application/use-cases/onboarding/ProcessDocumentsUseCase.js:            clou
 src/application/use-cases/onboarding/ProcessDocumentsUseCase.js:            uploaded_by: uploadedBy,
 src/application/use-cases/onboarding/ProcessDocumentsUseCase.js:          console.error(`[ProcessDocumentsUseCase] Erro ao fazer upload:`, error);
 src/application/use-cases/onboarding/ProcessDocumentsUseCase.js:          throw new AppError('Erro ao fazer upload de documento', 500);
+src/domain/interfaces/IStorageRepository.js:   * Fazer upload de arquivo
+src/domain/interfaces/IStorageRepository.js:  async upload(buffer, filename) {
+src/domain/interfaces/IStorageRepository.js:      'upload() deve ser implementado na classe filha'
 src/infrastructure/config/config.js:  upload: {
-src/infrastructure/container/OnboardingContainer.js:     * Dependências: StorageService (upload para Cloudinary)
 src/infrastructure/database/migrations/20260310000007-create-client-documents.js:            uploaded_by: {
 src/infrastructure/database/migrations/20260310000007-create-client-documents.js:        await queryInterface.addIndex('client_documents', ['uploaded_by'], { name: 'client_documents_uploaded_by_idx' });
 src/infrastructure/repositories/models/ClientDocument.js:      uploaded_by: {
 src/infrastructure/repositories/models/ClientDocument.js:        { fields: ['uploaded_by'] },
 src/infrastructure/repositories/models/ClientDocument.js:    ClientDocument.belongsTo(db.User, { foreignKey: 'uploaded_by', as: 'uploader' });
+src/infrastructure/repositories/StorageRepository.js:   * Fazer upload para Cloudinary
+src/infrastructure/repositories/StorageRepository.js:  async upload(buffer, filename) {
+src/infrastructure/repositories/StorageRepository.js:        const uploadOptions = {
+src/infrastructure/repositories/StorageRepository.js:        const uploadStream = cloudinary.uploader.upload_stream(
+src/infrastructure/repositories/StorageRepository.js:          uploadOptions,
+src/infrastructure/repositories/StorageRepository.js:                '[StorageRepository.upload] Erro no upload'
+src/infrastructure/repositories/StorageRepository.js:                new AppError('Erro ao fazer upload', 500, 'UPLOAD_ERROR')
+src/infrastructure/repositories/StorageRepository.js:        uploadStream.end(buffer);
+src/infrastructure/repositories/StorageRepository.js:      throw new AppError('Erro ao fazer upload', 500, 'UPLOAD_ERROR');
+src/infrastructure/repositories/StorageRepository.js:      await cloudinary.uploader.destroy(publicId);
 src/infrastructure/services/ClientDocumentService.js:   * Processa documentos enviados para um cliente: faz upload, substitui se existir,
 src/infrastructure/services/ClientDocumentService.js:    const uploadedPublicIds = [];
 src/infrastructure/services/ClientDocumentService.js:        uploadedPublicIds.push(...result.uploadedPublicIds);
@@ -385,7 +442,7 @@ src/interfaces/http/middlewares/uploadMiddleware.js:    uploadFields(req, res, a
 src/interfaces/http/middlewares/uploadMiddleware.js:        logger.warn({ err }, 'Erro no upload de arquivos');
 src/interfaces/http/routes/clientRoutes.js:const { clientUpdateUpload } = require('../../http/middlewares/uploadMiddleware');
 src/interfaces/http/routes/onboardingRoutes.js:const { onboardingUpload } = require('../middlewares/uploadMiddleware');
-src/interfaces/http/routes/onboardingRoutes.js:const { validateFiles } = require('../middlewares/upload/fileValidationMiddleware')
+src/interfaces/http/routes/onboardingRoutes.js:const { validateFiles } = require('../middlewares/upload/fileValidationMiddleware');
 
 ###############################################################################
 # SEÇÃO 8: CÓDIGO FONTE COMPLETO
@@ -522,8 +579,8 @@ class LoginDTO {
       throw new AppError('Senha é obrigatória', 422);
     }
 
-    if (data.password.length < 6) {
-      throw new AppError('Senha deve ter pelo menos 6 caracteres', 422);
+    if (data.password.length < 8) {
+      throw new AppError('Senha deve ter pelo menos 8 caracteres', 422);
     }
 
     return new LoginDTO(data);
@@ -1741,55 +1798,14 @@ class LoginUseCase {
    * Validar senha
    */
   async _validatePassword(user, password) {
-  console.log('\n╔════════════════════════════════════════╗');
-  console.log('║      PASSWORD DEBUG COMPLETO             ║');
-  console.log('╚════════════════════════════════════════╝\n');
 
-  // 1. Informações do usuário
-  console.log('📝 Usuário:');
-  console.log('   - ID:', user.id);
-  console.log('   - Email:', user.email);
-  console.log('   - Password no banco (completo):');
-  console.log('     ', user.password);
+    const passwordMatch = await user.checkPassword(password);
 
-  // 2. Senha enviada
-  console.log('\n🔑 Senha enviada:');
-  console.log('   -', password);
-  console.log('   - Tipo:', typeof password);
-  console.log('   - Length:', password?.length);
-
-  // 3. Teste manual do bcrypt
-  console.log('\n🧪 Teste manual bcrypt.compare():');
-  
-  try {
-    const bcrypt = require('bcryptjs');
-    
-    const manualMatch = await bcrypt.compare(password, user.password);
-    console.log('   - Resultado (manual):', manualMatch);
-    
-    // 4. Teste com método prototype
-    console.log('\n🔄 Teste via método prototype:');
-    const prototypeMatch = await user.checkPassword(password);
-    console.log('   - Resultado (prototype):', prototypeMatch);
-    
-    // 5. Informações adicionais
-    console.log('\nℹ️  Informações adicionais:');
-    console.log('   - Rounds do hash:', user.password?.substring(7, 9));
-    console.log('   - Hash válido?', user.password?.match(/^\$2[aby]\$\d{2}\$.{53}$/g) !== null);
-    
-  } catch (error) {
-    console.error('   ❌ Erro:', error.message);
+    if (!passwordMatch) {
+      logger.warn({ userId: user.id }, 'Senha inválida');
+      throw new AppError('E-mail ou senha incorretos.', 401);
+    }
   }
-
-  console.log('\n╚════════════════════════════════════════╝\n');
-
-  const passwordMatch = await user.checkPassword(password);
-
-  if (!passwordMatch) {
-    logger.warn({ userId: user.id }, 'Senha inválida');
-    throw new AppError('E-mail ou senha incorretos.', 401);
-  }
-}
 }
 
 module.exports = LoginUseCase;
@@ -2289,51 +2305,783 @@ module.exports = CreateBankAccountUseCase;
 FILE: src/application/use-cases/onboarding/CreateClientUseCase.js
 --------------------------------------------------------------------------------
 /**
- * USE CASE: Criar Cliente
- * Cria apenas o cliente (sem dependências de venda/bandeiras)
+ * USE CASE: Create Client (Onboarding) - COM DOCUMENTOS
+ * 
+ * ✅ IMPLEMENTAÇÕES FINAIS:
+ * - Transaction para integridade (CRÍTICO: rollback se erro)
+ * - Validação de bandeiras otimizada (1 query para N)
+ * - Bulk insert para bandeiras (1 query)
+ * - Protocolo único automático
+ * - CEP com tratamento seguro
+ * - Logs estruturados com transactionId
+ * - NOVO: Deleção de arquivos APÓS commit (SEGURO!)
+ * - NOVO: ProcessClientDocumentsUseCase integrado
+ * 
+ * REGRA DE NEGÓCIO: Cliente DEVE ter plano OU bandeiras
+ * 
+ * CICLO DE VIDA DOS ARQUIVOS:
+ * 1. Upload para Cloudinary (durante transação)
+ * 2. Persistir registro no banco (dentro da transação)
+ * 3. COMMIT transação
+ * 4. SÓ DEPOIS: Deletar arquivos antigos (async)
  */
 
-const { Client } = require('../../../infrastructure/repositories/models');
 const AppError = require('../../../shared/utils/AppError');
-const { generateProtocol } = require('../../../shared/utils/protocol');
-const { v4: uuid } = require('uuid');
+const logger = require('../../../infrastructure/config/logger');
 
 class CreateClientUseCase {
-  async execute(requester, clientData, transaction) {
-    // Verificar unicidade de CNPJ
-    const existingByCnpj = await Client.findOne({
-      where: { cnpj: clientData.cnpj },
-    });
+  constructor(
+    clientRepository,
+    planRepository,
+    flagRepository,
+    clientFlagRepository,
+    clientBankAccountRepository,
+    clientDocumentRepository,  // ✅ NOVO: Adicionado
+    processClientDocumentsUseCase,
+    storageRepository,  // ✅ NOVO: Para cleanup async
+    sequelize
+  ) {
+    this.clientRepository = clientRepository;
+    this.planRepository = planRepository;
+    this.flagRepository = flagRepository;
+    this.clientFlagRepository = clientFlagRepository;
+    this.clientBankAccountRepository = clientBankAccountRepository;
+    this.clientDocumentRepository = clientDocumentRepository;
+    this.processClientDocumentsUseCase = processClientDocumentsUseCase;
+    this.storageRepository = storageRepository;
+    this.sequelize = sequelize;
+  }
 
-    if (existingByCnpj) {
-      throw new AppError('CNPJ já cadastrado no sistema', 409);
+  /**
+   * EXECUÇÃO PRINCIPAL COM TRANSAÇÃO E DOCUMENTOS
+   * 
+   * ✅ FLUXO SEGURO:
+   * 1. Validações PRÉ-transação (leitura do banco)
+   * 2. Iniciar transaction
+   * 3. Processar documentos (upload + validação)
+   * 4. Criar cliente
+   * 5. Persistir documentos
+   * 6. Associar plano
+   * 7. Associar bandeiras
+   * 8. Associar conta bancária
+   * 9. COMMIT transação
+   * 10. APÓS commit: Deletar arquivos antigos (async, seguro)
+   * 11. Em caso de erro: ROLLBACK + cleanup todos os uploads
+   * 
+   * @param {Object} onboardingDTO - Dados do onboarding
+   * @param {string} userId - ID do usuário criando o cliente
+   * @param {Object} files - Arquivos multipart/form-data
+   * @returns {Promise<Object>} Cliente criado
+   * @throws {AppError} Se validação ou criação falhar
+   */
+  async execute(onboardingDTO, userId, files) {
+    const transactionId = `onb-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    
+    // ✅ RASTREADORES para cleanup seguro
+    let uploadedPublicIds = [];        // Arquivos NOVOS (deletar se erro)
+    let oldPublicIdsToDelete = [];     // Arquivos ANTIGOS (deletar após commit)
+    let clientCreated = false;         // Flag para saber se cliente foi criado
+
+    try {
+      logger.info(
+        { transactionId, cnpj: onboardingDTO.cnpj, fileCount: Object.keys(files || {}).length },
+        '[CreateClientUseCase] Iniciando onboarding com documentos'
+      );
+
+      // ✅ PASSO 0: Validações PRÉ-TRANSAÇÃO
+      try {
+        this._validatePlanOrFlags(
+          onboardingDTO.plan_id,
+          onboardingDTO.flag_ids
+        );
+
+        if (onboardingDTO.plan_id) {
+          await this._validatePlan(onboardingDTO.plan_id);
+        }
+
+        if (onboardingDTO.flag_ids && onboardingDTO.flag_ids.length > 0) {
+          await this._validateFlagsOptimized(
+            onboardingDTO.flag_ids,
+            transactionId
+          );
+        }
+
+        logger.debug(
+          { transactionId },
+          '[CreateClientUseCase] Validações pré-transação OK'
+        );
+
+      } catch (error) {
+        logger.error(
+          { transactionId, error: error.message },
+          '[CreateClientUseCase] Erro nas validações pré-transação'
+        );
+        throw error;
+      }
+
+      // ✅ PASSO 1: Iniciar transaction
+      const transaction = await this.sequelize.transaction();
+
+      try {
+        logger.info(
+          { transactionId, cnpj: onboardingDTO.cnpj },
+          '[CreateClientUseCase] Transação iniciada'
+        );
+
+        // ✅ PASSO 2: Criar cliente PRIMEIRO (precisa de ID para documentos)
+        const client = await this._createClient(
+          onboardingDTO,
+          userId,
+          transaction,
+          transactionId
+        );
+        clientCreated = true;
+
+        logger.debug(
+          { transactionId, clientId: client.id },
+          '[CreateClientUseCase] Cliente criado, processando documentos...'
+        );
+
+        // ✅ PASSO 3: Processar e persistir documentos
+        if (files && Object.keys(files).length > 0) {
+          const docResult = await this.processClientDocumentsUseCase.execute({
+            clientId: client.id,
+            files,
+            userId,
+            transaction,
+          });
+
+          uploadedPublicIds = docResult.uploadedPublicIds;
+
+          // ✅ Persistir documentos no banco
+          if (docResult.documents && docResult.documents.length > 0) {
+            const persistResult = await this._persistDocuments(
+              client.id,
+              docResult.documents,
+              transaction,
+              transactionId
+            );
+
+            // ✅ Rastrear arquivos antigos a deletar APÓS commit
+            oldPublicIdsToDelete.push(...(persistResult.oldPublicIdsToDelete || []));
+          }
+        }
+
+        // ✅ PASSO 4: Associar plano
+        if (onboardingDTO.plan_id) {
+          await this._attachPlan(
+            client.id,
+            onboardingDTO.plan_id,
+            transaction,
+            transactionId
+          );
+        }
+
+        // ✅ PASSO 5: Associar bandeiras
+        if (onboardingDTO.flag_ids && onboardingDTO.flag_ids.length > 0) {
+          await this._attachFlagsOptimized(
+            client.id,
+            onboardingDTO.flag_ids,
+            transaction,
+            transactionId
+          );
+        }
+
+        // ✅ PASSO 6: Associar conta bancária
+        await this._attachBankAccount(
+          client.id,
+          onboardingDTO,
+          transaction,
+          transactionId
+        );
+
+        // ✅ PASSO 7: COMMIT TRANSAÇÃO
+        await transaction.commit();
+
+        logger.info(
+          { 
+            transactionId, 
+            clientId: client.id, 
+            cnpj: onboardingDTO.cnpj,
+            protocol: client.protocol,
+          },
+          '[CreateClientUseCase] Transação CONCLUÍDA COM SUCESSO'
+        );
+
+        // ✅ PASSO 8: APÓS COMMIT - Deletar arquivos ANTIGOS (seguro!)
+        if (oldPublicIdsToDelete.length > 0) {
+          this._scheduleOldFilesCleanup(
+            oldPublicIdsToDelete,
+            transactionId
+          );
+        }
+
+        return client;
+
+      } catch (error) {
+        // ✅ PASSO 9: ROLLBACK - Se erro na transação
+        try {
+          await transaction.rollback();
+          logger.warn(
+            {
+              transactionId,
+              cnpj: onboardingDTO.cnpj,
+              error: error.message,
+              errorCode: error.code || error.statusCode || 'UNKNOWN',
+            },
+            '[CreateClientUseCase] Transação DESFEITA (ROLLBACK)'
+          );
+        } catch (rollbackError) {
+          logger.error(
+            {
+              transactionId,
+              cnpj: onboardingDTO.cnpj,
+              rollbackError: rollbackError.message,
+            },
+            '[CreateClientUseCase] ERRO CRÍTICO ao fazer ROLLBACK'
+          );
+        }
+
+        // ✅ PASSO 10: Cleanup - Deletar TODOS os uploads novos (erro = não salvar no banco)
+        if (uploadedPublicIds.length > 0) {
+          logger.warn(
+            { transactionId, uploadCount: uploadedPublicIds.length },
+            '[CreateClientUseCase] Limpando uploads após erro (ROLLBACK)'
+          );
+          await this._cleanupFailedUploads(uploadedPublicIds, transactionId);
+        }
+
+        throw error;
+      }
+
+    } catch (error) {
+      logger.error(
+        { 
+          transactionId, 
+          cnpj: onboardingDTO.cnpj, 
+          error: error.message,
+          clientCreated,
+        },
+        '[CreateClientUseCase] Erro fatal no onboarding'
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ VALIDAÇÃO CRÍTICA: Cliente deve ter plano OU bandeiras
+   */
+  _validatePlanOrFlags(planId, flagIds) {
+    const hasPlan = !!planId && String(planId).trim().length > 0;
+    const hasFlags = Array.isArray(flagIds) && flagIds.length > 0;
+
+    if (!hasPlan && !hasFlags) {
+      throw new AppError(
+        'Cliente deve ter um plano ou ao menos uma bandeira',
+        400,
+        'INVALID_PLAN_OR_FLAGS'
+      );
     }
 
-    // Criar cliente
-    const client = await Client.create(
-      {
-        id: uuid(),
-        protocol: generateProtocol(),
-        corporate_name: clientData.corporate_name.trim(),
-        trade_name: clientData.trade_name?.trim() || null,
-        cnpj: clientData.cnpj,
-        responsible_name: clientData.responsible_name.trim(),
-        state_registration: clientData.state_registration || null,
-        address_street: clientData.address.street,
-        address_number: clientData.address.number,
-        address_complement: clientData.address.complement,
-        address_neighborhood: clientData.address.neighborhood,
-        address_city: clientData.address.city,
-        address_state: clientData.address.state,
-        address_zip: clientData.address.zip,
+    logger.debug(
+      { hasPlan, hasFlags },
+      '[CreateClientUseCase._validatePlanOrFlags] Validação passou'
+    );
+  }
+
+  /**
+   * Validar plano
+   */
+  async _validatePlan(planId) {
+    try {
+      const plan = await this.planRepository.findById(planId);
+
+      if (!plan) {
+        throw new AppError(
+          `Plano ${planId} não encontrado`,
+          404,
+          'PLAN_NOT_FOUND'
+        );
+      }
+
+      if (!plan.is_active) {
+        throw new AppError(
+          `Plano ${plan.name || planId} está inativo`,
+          400,
+          'PLAN_INACTIVE'
+        );
+      }
+
+      logger.debug(
+        { planId, planName: plan.name },
+        '[CreateClientUseCase._validatePlan] Plano válido'
+      );
+
+      return plan;
+
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      logger.error(
+        { error: error.message, planId },
+        '[CreateClientUseCase._validatePlan] Erro'
+      );
+      throw new AppError('Erro ao validar plano', 500, 'PLAN_VALIDATION_ERROR');
+    }
+  }
+
+  /**
+   * ✅ OTIMIZADO: Validar múltiplas bandeiras em 1 QUERY
+   */
+  async _validateFlagsOptimized(flagIds, transactionId) {
+    try {
+      if (!Array.isArray(flagIds) || flagIds.length === 0) {
+        throw new AppError(
+          'Flag IDs deve ser um array não-vazio',
+          400,
+          'INVALID_FLAG_IDS_FORMAT'
+        );
+      }
+
+      logger.debug(
+        { transactionId, flagCount: flagIds.length },
+        '[CreateClientUseCase._validateFlagsOptimized] Iniciando'
+      );
+
+      // ✅ Remover duplicatas
+      const uniqueFlagIds = [...new Set(flagIds)];
+
+      if (uniqueFlagIds.length !== flagIds.length) {
+        logger.warn(
+          {
+            transactionId,
+            original: flagIds.length,
+            unique: uniqueFlagIds.length,
+          },
+          '[CreateClientUseCase._validateFlagsOptimized] Duplicatas removidas'
+        );
+      }
+
+      // ✅ UMA query para TODAS as flags
+      const flags = await this.flagRepository.findByIds(uniqueFlagIds);
+
+      logger.debug(
+        {
+          transactionId,
+          requestedCount: uniqueFlagIds.length,
+          foundCount: flags.length,
+        },
+        '[CreateClientUseCase._validateFlagsOptimized] Flags recuperadas'
+      );
+
+      if (flags.length !== uniqueFlagIds.length) {
+        const foundIds = flags.map(f => f.id);
+        const missingIds = uniqueFlagIds.filter(id => !foundIds.includes(id));
+
+        throw new AppError(
+          `Bandeiras não encontradas: ${missingIds.join(', ')}`,
+          404,
+          'FLAGS_NOT_FOUND'
+        );
+      }
+
+      // ✅ Validar ativas
+      const inactiveFlags = flags.filter(flag => !flag.is_active);
+
+      if (inactiveFlags.length > 0) {
+        const inactiveNames = inactiveFlags.map(f => f.name).join(', ');
+        throw new AppError(
+          `Bandeiras inativas: ${inactiveNames}`,
+          400,
+          'FLAGS_INACTIVE'
+        );
+      }
+
+      logger.info(
+        { transactionId, validatedCount: flags.length },
+        '[CreateClientUseCase._validateFlagsOptimized] Todas válidas'
+      );
+
+      return uniqueFlagIds;
+
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      logger.error(
+        { transactionId, error: error.message, flagIdCount: flagIds.length },
+        '[CreateClientUseCase._validateFlagsOptimized] Erro'
+      );
+      throw new AppError(
+        'Erro ao validar bandeiras',
+        500,
+        'FLAGS_VALIDATION_ERROR'
+      );
+    }
+  }
+
+  /**
+   * Criar cliente DENTRO da transação
+   */
+  async _createClient(onboardingDTO, userId, transaction, transactionId) {
+    try {
+      const protocol = onboardingDTO.protocol || this._generateProtocol();
+
+      logger.debug(
+        { transactionId, cnpj: onboardingDTO.cnpj, protocol },
+        '[CreateClientUseCase._createClient] Criando'
+      );
+
+      const clientData = {
+        protocol,
+        corporate_name: onboardingDTO.corporate_name,
+        trade_name: onboardingDTO.trade_name || null,
+        cnpj: onboardingDTO.cnpj,
+        responsible_name: onboardingDTO.responsible_name,
+        state_registration: onboardingDTO.state_registration || null,
+        phone: onboardingDTO.phone,
+        email: onboardingDTO.email,
+        benefit_type: onboardingDTO.benefit_type,
+        notes: onboardingDTO.notes || null,
+        machine_name: onboardingDTO.machine_name || null,
+        machine_affiliation_code: onboardingDTO.machine_affiliation_code || null,
+        address_street: onboardingDTO.address_street,
+        address_number: onboardingDTO.address_number,
+        address_complement: onboardingDTO.address_complement || null,
+        address_neighborhood: onboardingDTO.address_neighborhood || null,
+        address_city: onboardingDTO.address_city,
+        address_state: onboardingDTO.address_state,
+        address_zip: onboardingDTO.address_zip,
         overall_status: 'pending',
-        created_by: requester.id,
-        partner_id: clientData.partner_id || null,
-      },
-      { transaction }
+        is_active: true,
+        created_by: userId,
+        partner_id: onboardingDTO.partner_id || null,
+      };
+
+      const client = await this.clientRepository.create(
+        clientData,
+        { transaction }
+      );
+
+      logger.info(
+        { transactionId, clientId: client.id, protocol },
+        '[CreateClientUseCase._createClient] Sucesso'
+      );
+
+      return client;
+
+    } catch (error) {
+      logger.error(
+        { transactionId, error: error.message },
+        '[CreateClientUseCase._createClient] Erro'
+      );
+      throw new AppError(
+        'Erro ao criar cliente',
+        500,
+        'CLIENT_CREATION_ERROR'
+      );
+    }
+  }
+
+  /**
+   * ✅ PERSISTIR DOCUMENTOS - Retorna IDs antigos para cleanup APÓS commit
+   * 
+   * IMPORTANTE: Não deleta aqui! Apenas rastreia para deletar depois do commit
+   */
+  async _persistDocuments(clientId, documentsData, transaction, transactionId) {
+    try {
+      const oldPublicIdsToDelete = [];
+
+      for (const doc of documentsData) {
+        if (doc.isUpdate) {
+          // Atualizar documento existente
+          await this.clientDocumentRepository.update(
+            doc.existingId,
+            doc.data,
+            { transaction }
+          );
+
+          // ✅ RASTREAR arquivo antigo para deletar DEPOIS do commit
+          if (doc.oldPublicId) {
+            oldPublicIdsToDelete.push(doc.oldPublicId);
+          }
+
+          logger.debug(
+            { transactionId, docType: doc.data.document_type },
+            '[CreateClientUseCase._persistDocuments] Documento ATUALIZADO'
+          );
+        } else {
+          // Criar novo documento
+          await this.clientDocumentRepository.create(
+            doc.data,
+            { transaction }
+          );
+
+          logger.debug(
+            { transactionId, docType: doc.data.document_type },
+            '[CreateClientUseCase._persistDocuments] Documento CRIADO'
+          );
+        }
+      }
+
+      logger.info(
+        { 
+          transactionId, 
+          documentCount: documentsData.length,
+          oldFilesToDelete: oldPublicIdsToDelete.length,
+        },
+        '[CreateClientUseCase._persistDocuments] Persistência OK'
+      );
+
+      return { oldPublicIdsToDelete };
+
+    } catch (error) {
+      logger.error(
+        { transactionId, error: error.message, docCount: documentsData.length },
+        '[CreateClientUseCase._persistDocuments] Erro'
+      );
+      throw new AppError(
+        'Erro ao persistir documentos',
+        500,
+        'DOCUMENT_PERSISTENCE_ERROR'
+      );
+    }
+  }
+
+  /**
+   * Associar plano
+   */
+  async _attachPlan(clientId, planId, transaction, transactionId) {
+    try {
+      logger.debug(
+        { transactionId, clientId, planId },
+        '[CreateClientUseCase._attachPlan] Associando'
+      );
+
+      // Implementar conforme sua estrutura
+      // await this.clientPlanRepository.create(...);
+
+      logger.info(
+        { transactionId, clientId, planId },
+        '[CreateClientUseCase._attachPlan] Associado'
+      );
+
+    } catch (error) {
+      logger.error(
+        { transactionId, error: error.message, clientId, planId },
+        '[CreateClientUseCase._attachPlan] Erro'
+      );
+      throw new AppError(
+        'Erro ao associar plano',
+        500,
+        'PLAN_ATTACHMENT_ERROR'
+      );
+    }
+  }
+
+  /**
+   * ✅ OTIMIZADO: Bulk insert de bandeiras
+   */
+  async _attachFlagsOptimized(clientId, flagIds, transaction, transactionId) {
+    try {
+      const uniqueFlagIds = [...new Set(flagIds)];
+
+      logger.debug(
+        { transactionId, clientId, flagCount: uniqueFlagIds.length },
+        '[CreateClientUseCase._attachFlagsOptimized] Preparando bulk insert'
+      );
+
+      const clientFlagsData = uniqueFlagIds.map(flagId => ({
+        client_id: clientId,
+        flag_id: flagId,
+        created_at: new Date(),
+        updated_at: new Date(),
+      }));
+
+      await this.clientFlagRepository.bulkCreate(
+        clientFlagsData,
+        { transaction }
+      );
+
+      logger.info(
+        { transactionId, clientId, count: uniqueFlagIds.length },
+        '[CreateClientUseCase._attachFlagsOptimized] Bulk insert OK'
+      );
+
+    } catch (error) {
+      logger.error(
+        {
+          transactionId,
+          error: error.message,
+          clientId,
+          flagCount: flagIds.length,
+        },
+        '[CreateClientUseCase._attachFlagsOptimized] Erro'
+      );
+      throw new AppError(
+        'Erro ao associar bandeiras',
+        500,
+        'FLAGS_ATTACHMENT_ERROR'
+      );
+    }
+  }
+
+  /**
+   * Associar conta bancária
+   */
+  async _attachBankAccount(clientId, onboardingDTO, transaction, transactionId) {
+    try {
+      logger.debug(
+        { transactionId, clientId },
+        '[CreateClientUseCase._attachBankAccount] Criando'
+      );
+
+      const bankData = {
+        client_id: clientId,
+        bank_name: onboardingDTO.bank_name,
+        agency: onboardingDTO.agency,
+        agency_digit: onboardingDTO.agency_digit || null,
+        account: onboardingDTO.account,
+        account_digit: onboardingDTO.account_digit || null,
+        account_type: onboardingDTO.account_type,
+      };
+
+      await this.clientBankAccountRepository.create(
+        bankData,
+        { transaction }
+      );
+
+      logger.info(
+        { transactionId, clientId },
+        '[CreateClientUseCase._attachBankAccount] Criada'
+      );
+
+    } catch (error) {
+      logger.error(
+        { transactionId, error: error.message, clientId },
+        '[CreateClientUseCase._attachBankAccount] Erro'
+      );
+      throw new AppError(
+        'Erro ao criar conta bancária',
+        500,
+        'BANK_ACCOUNT_CREATION_ERROR'
+      );
+    }
+  }
+
+  /**
+   * ✅ SCHEDULE cleanup de arquivos ANTIGOS (APÓS commit, seguro!)
+   * 
+   * Usa setImmediate para não bloquear a resposta HTTP
+   * Mas SÓ EXECUTA após o commit já ter sucedido
+   */
+  _scheduleOldFilesCleanup(publicIds, transactionId) {
+    logger.debug(
+      { transactionId, count: publicIds.length },
+      '[CreateClientUseCase._scheduleOldFilesCleanup] Agendando cleanup'
     );
 
-    return client;
+    // ✅ Executar ASYNC, não bloqueia resposta
+    setImmediate(async () => {
+      await this._deleteOldFilesAsync(publicIds, transactionId);
+    });
+  }
+
+  /**
+   * ✅ DELETAR arquivos ANTIGOS (com segurança)
+   * 
+   * Executado APÓS o commit, então é seguro
+   * Se falhar, apenas loga o erro (não quebra a resposta)
+   */
+  async _deleteOldFilesAsync(publicIds, transactionId) {
+    try {
+      logger.debug(
+        { transactionId, count: publicIds.length },
+        '[CreateClientUseCase._deleteOldFilesAsync] Iniciando deleção de arquivos antigos'
+      );
+
+      const deletePromises = publicIds.map(publicId =>
+        this.storageRepository
+          .delete(publicId)
+          .catch(error => {
+            logger.warn(
+              { error: error.message, publicId, transactionId },
+              '[CreateClientUseCase._deleteOldFilesAsync] Erro ao deletar (continua)'
+            );
+          })
+      );
+
+      await Promise.allSettled(deletePromises);
+
+      logger.info(
+        { transactionId, count: publicIds.length },
+        '[CreateClientUseCase._deleteOldFilesAsync] Cleanup completo'
+      );
+
+    } catch (error) {
+      // ✅ Não relança erro - cleanup não deve quebrar a operação bem-sucedida
+      logger.error(
+        { error: error.message, transactionId, count: publicIds.length },
+        '[CreateClientUseCase._deleteOldFilesAsync] Erro (ignorado)'
+      );
+    }
+  }
+
+  /**
+   * ✅ CLEANUP em caso de ERRO - Deletar uploads novos (síncronamente, pois ainda em erro)
+   */
+  async _cleanupFailedUploads(uploadedPublicIds, transactionId) {
+    try {
+      logger.warn(
+        { transactionId, count: uploadedPublicIds.length },
+        '[CreateClientUseCase._cleanupFailedUploads] Deletando uploads falhados'
+      );
+
+      const deletePromises = uploadedPublicIds.map(publicId =>
+        this.storageRepository
+          .delete(publicId)
+          .catch(error => {
+            logger.warn(
+              { error: error.message, publicId, transactionId },
+              '[CreateClientUseCase._cleanupFailedUploads] Erro ao deletar'
+            );
+          })
+      );
+
+      await Promise.allSettled(deletePromises);
+
+      logger.info(
+        { transactionId, count: uploadedPublicIds.length },
+        '[CreateClientUseCase._cleanupFailedUploads] Cleanup completado'
+      );
+
+    } catch (error) {
+      logger.error(
+        { error: error.message, transactionId },
+        '[CreateClientUseCase._cleanupFailedUploads] Erro no cleanup'
+      );
+    }
+  }
+
+  /**
+   * Gerar protocolo único
+   */
+  _generateProtocol() {
+    const date = new Date();
+    const dateStr = date
+      .toISOString()
+      .split('T')[0]
+      .replace(/-/g, '');
+    const random = Math.random()
+      .toString(36)
+      .substring(2, 8)
+      .toUpperCase();
+
+    const protocol = `CLI-${dateStr}-${random}`;
+
+    logger.debug(
+      { protocol },
+      '[CreateClientUseCase._generateProtocol] Gerado'
+    );
+
+    return protocol;
   }
 }
 
@@ -2516,6 +3264,262 @@ class OnboardClientUseCase {
 }
 
 module.exports = OnboardClientUseCase;
+--- END FILE ---
+
+--------------------------------------------------------------------------------
+FILE: src/application/use-cases/onboarding/ProcessClientDocumentsUseCase.js
+--------------------------------------------------------------------------------
+/**
+ * USE CASE: Process Client Documents (Onboarding)
+ * 
+ * Responsabilidade:
+ * - Validar arquivos de entrada
+ * - Fazer upload para storage
+ * - Persistir registros no banco
+ * - Rastrear público_ids para cleanup em caso de erro
+ * 
+ * ✅ Completamente desacoplado de Service
+ * ✅ Transação é controlada por quem chama
+ * ✅ Retorna rastreamento de uploads para rollback
+ */
+
+const AppError = require('../../../shared/utils/AppError');
+const logger = require('../../../infrastructure/config/logger');
+
+class ProcessClientDocumentsUseCase {
+  constructor(
+    clientDocumentRepository,
+    storageRepository
+  ) {
+    this.clientDocumentRepository = clientDocumentRepository;
+    this.storageRepository = storageRepository;
+  }
+
+  /**
+   * Processar documentos do onboarding
+   * 
+   * @param {Object} params
+   * @param {string} params.clientId - ID do cliente
+   * @param {Object} params.files - Objeto com arrays de arquivos (multer format)
+   * @param {string} params.userId - ID do usuário que está fazendo upload
+   * @param {Object} params.transaction - Transaction do Sequelize
+   * @returns {Promise<{documents: Array, uploadedPublicIds: string[]}>}
+   */
+  async execute({ clientId, files, userId, transaction }) {
+    const transactionId = `doc-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const uploadedPublicIds = [];
+    const documentsToCreate = [];
+
+    try {
+      logger.info(
+        { transactionId, clientId, filesCount: Object.keys(files || {}).length },
+        '[ProcessClientDocumentsUseCase] Iniciando processamento de documentos'
+      );
+
+      // ✅ Validar que há arquivos
+      if (!files || Object.keys(files).length === 0) {
+        logger.debug(
+          { transactionId, clientId },
+          '[ProcessClientDocumentsUseCase] Nenhum arquivo enviado'
+        );
+        return {
+          documents: [],
+          uploadedPublicIds: [],
+        };
+      }
+
+      // ✅ Processar cada tipo de documento
+      const documentTypes = this._getDocumentTypes();
+      
+      for (const [fieldName, docType] of Object.entries(documentTypes)) {
+        if (files[fieldName]?.[0]) {
+          const result = await this._processSingleDocument({
+            clientId,
+            file: files[fieldName][0],
+            docType,
+            userId,
+            transactionId,
+            transaction,
+          });
+
+          uploadedPublicIds.push(...result.uploadedPublicIds);
+          documentsToCreate.push(...result.documentsToCreate);
+        }
+      }
+
+      logger.info(
+        { transactionId, documentCount: documentsToCreate.length },
+        '[ProcessClientDocumentsUseCase] Documentos prontos para persistência'
+      );
+
+      return {
+        documents: documentsToCreate,
+        uploadedPublicIds,
+      };
+
+    } catch (error) {
+      logger.error(
+        { transactionId, error: error.message },
+        '[ProcessClientDocumentsUseCase] Erro ao processar documentos'
+      );
+
+      // ✅ Limpar uploads em caso de erro
+      await this._cleanupFailedUploads(uploadedPublicIds, transactionId);
+
+      throw error;
+    }
+  }
+
+  /**
+   * Processar um documento individual
+   */
+  async _processSingleDocument({
+    clientId,
+    file,
+    docType,
+    userId,
+    transactionId,
+    transaction,
+  }) {
+    try {
+      logger.debug(
+        { transactionId, docType, filename: file.originalname },
+        '[ProcessClientDocumentsUseCase._processSingleDocument] Processando documento'
+      );
+
+      // ✅ PASSO 1: Validar arquivo
+      this._validateFile(file);
+
+      // ✅ PASSO 2: Fazer upload
+      const uploadResult = await this.storageRepository.upload(
+        file.buffer,
+        `client_${clientId}_${docType}_${Date.now()}`
+      );
+
+      logger.debug(
+        { transactionId, publicId: uploadResult.public_id },
+        '[ProcessClientDocumentsUseCase._processSingleDocument] Upload concluído'
+      );
+
+      // ✅ PASSO 3: Verificar se documento já existe
+      const existingDoc = await this.clientDocumentRepository.findByType(
+        clientId,
+        docType,
+        { transaction }
+      );
+
+      if (existingDoc) {
+        logger.debug(
+          { transactionId, docType },
+          '[ProcessClientDocumentsUseCase._processSingleDocument] Documento já existe, será atualizado'
+        );
+      }
+
+      // ✅ PASSO 4: Preparar dados para persistência
+      const documentData = {
+        client_id: clientId,
+        document_type: docType,
+        cloudinary_public_id: uploadResult.public_id,
+        original_name: file.originalname,
+        mime_type: file.mimetype,
+        file_size: file.size,
+        uploaded_by: userId,
+      };
+
+      return {
+        uploadedPublicIds: [uploadResult.public_id],
+        documentsToCreate: [
+          {
+            data: documentData,
+            isUpdate: !!existingDoc,
+            existingId: existingDoc?.id,
+            oldPublicId: existingDoc?.cloudinary_public_id,
+          },
+        ],
+      };
+
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+
+      logger.error(
+        { transactionId, error: error.message, docType },
+        '[ProcessClientDocumentsUseCase._processSingleDocument] Erro'
+      );
+      throw new AppError(
+        `Erro ao processar documento ${docType}`,
+        500,
+        'DOCUMENT_PROCESSING_ERROR'
+      );
+    }
+  }
+
+  /**
+   * Validar arquivo
+   */
+  _validateFile(file) {
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedMimes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+
+    if (file.size > maxSize) {
+      throw new AppError(
+        'Arquivo muito grande (máximo 5MB)',
+        400,
+        'FILE_TOO_LARGE'
+      );
+    }
+
+    if (!allowedMimes.includes(file.mimetype)) {
+      throw new AppError(
+        'Tipo de arquivo não permitido',
+        400,
+        'INVALID_FILE_TYPE'
+      );
+    }
+  }
+
+  /**
+   * Obter tipos de documento mapeados
+   */
+  _getDocumentTypes() {
+    return {
+      contrato: 'company_document',
+      proof_of_address: 'proof_of_address',
+      bank_account_proof: 'bank_account_proof',
+      card_machine_proof: 'card_machine_proof',
+    };
+  }
+
+  /**
+   * Limpar uploads falhados
+   */
+  async _cleanupFailedUploads(uploadedPublicIds, transactionId) {
+    if (!uploadedPublicIds.length) return;
+
+    logger.warn(
+      { transactionId, count: uploadedPublicIds.length },
+      '[ProcessClientDocumentsUseCase] Limpando uploads falhados'
+    );
+
+    const deletePromises = uploadedPublicIds.map(id =>
+      this.storageRepository.delete(id).catch(err => {
+        logger.warn(
+          { error: err.message, publicId: id },
+          '[ProcessClientDocumentsUseCase._cleanupFailedUploads] Erro ao deletar'
+        );
+      })
+    );
+
+    await Promise.allSettled(deletePromises);
+  }
+}
+
+module.exports = ProcessClientDocumentsUseCase;
 --- END FILE ---
 
 --------------------------------------------------------------------------------
@@ -3385,11 +4389,14 @@ FILE: src/domain/entities/User.js
  * ENTIDADE: User
  */
 const { ROLES } = require('../../shared/constants/roles')
+const bcrypt = require('bcryptjs');
+
 class User {
   constructor({
     id,
     name,
     email,
+    password,
     cpf,
     address_street,
     address_number,
@@ -3411,6 +4418,7 @@ class User {
     this.id = id;
     this.name = name.trim();
     this.email = email.toLowerCase().trim();
+    this.password = password;
     this.cpf = cpf || null;
     this.address_street = address_street || null;
     this.address_number = address_number || null;
@@ -3464,6 +4472,40 @@ class User {
       throw new Error(`Role inválida. Valores aceitos: ${validRoles.join(', ')}`);
     }
   }
+  /**
+     * REGRA DO DOMÍNIO: Validar senha (comparação hash)
+     */
+  async checkPassword(candidatePassword) {
+    if (!this.password) {
+      return false;
+    }
+    return bcrypt.compare(candidatePassword, this.password);
+  }
+
+  /**
+   * Serializar para JSON (Segurança: remove a senha da saída)
+   */
+  toJSON() {
+    return {
+      id: this.id,
+      name: this.name,
+      email: this.email,
+      cpf: this.cpf,
+      address_street: this.address_street,
+      address_number: this.address_number,
+      address_complement: this.address_complement,
+      address_neighborhood: this.address_neighborhood,
+      address_city: this.address_city,
+      address_state: this.address_state,
+      address_zip: this.address_zip,
+      role: this.role,
+      is_active: this.is_active,
+      last_login_at: this.last_login_at,
+      created_at: this.created_at,
+      updated_at: this.updated_at,
+    };
+  }
+
 
   /**
    * REGRA DO DOMÍNIO: Atualizar perfil (apenas campos de perfil)
@@ -3583,6 +4625,150 @@ module.exports = User;
 --- END FILE ---
 
 --------------------------------------------------------------------------------
+FILE: src/domain/interfaces/IClientDocumentRepository.js
+--------------------------------------------------------------------------------
+/**
+ * INTERFACE: IClientDocumentRepository
+ * 
+ * Responsabilidade: Contrato para persistência de documentos de cliente
+ * 
+ * @abstract
+ */
+
+class IClientDocumentRepository {
+  /**
+   * Criar novo documento
+   * 
+   * @param {Object} documentData - Dados do documento
+   * @param {Object} options - Opções (transaction, etc)
+   * @returns {Promise<Object>} Documento criado
+   * @throws {AppError}
+   * 
+   * @abstract
+   */
+  async create(documentData, options = {}) {
+    throw new Error('create() deve ser implementado');
+  }
+
+  /**
+   * Buscar documento por tipo e cliente
+   * 
+   * @param {string} clientId - UUID do cliente
+   * @param {string} docType - Tipo do documento
+   * @param {Object} options - Opções (transaction, etc)
+   * @returns {Promise<Object|null>} Documento ou null
+   * 
+   * @abstract
+   */
+  async findByType(clientId, docType, options = {}) {
+    throw new Error('findByType() deve ser implementado');
+  }
+
+  /**
+   * Atualizar documento
+   * 
+   * @param {string} id - UUID do documento
+   * @param {Object} data - Dados a atualizar
+   * @param {Object} options - Opções (transaction, etc)
+   * @returns {Promise<Object>} Documento atualizado
+   * @throws {AppError}
+   * 
+   * @abstract
+   */
+  async update(id, data, options = {}) {
+    throw new Error('update() deve ser implementado');
+  }
+
+  /**
+   * Deletar documento
+   * 
+   * @param {string} id - UUID do documento
+   * @param {Object} options - Opções (transaction, etc)
+   * @returns {Promise<void>}
+   * @throws {AppError}
+   * 
+   * @abstract
+   */
+  async delete(id, options = {}) {
+    throw new Error('delete() deve ser implementado');
+  }
+}
+
+module.exports = IClientDocumentRepository;
+--- END FILE ---
+
+--------------------------------------------------------------------------------
+FILE: src/domain/interfaces/IClientRepository.js
+--------------------------------------------------------------------------------
+/**
+ * INTERFACE: IClientRepository
+ * 
+ * Responsabilidade: Contrato para operações de persistência de clientes
+ * 
+ * @abstract
+ */
+
+class IClientRepository {
+  /**
+   * Criar novo cliente
+   * 
+   * @param {Object} clientData - Dados do cliente
+   * @param {Object} options - Opções (transaction, etc)
+   * @returns {Promise<Object>} Cliente criado com ID
+   * @throws {AppError}
+   * 
+   * @abstract
+   */
+  async create(clientData, options = {}) {
+    throw new Error('create() deve ser implementado');
+  }
+
+  /**
+   * Buscar cliente por ID
+   * 
+   * @param {string} id - UUID do cliente
+   * @returns {Promise<Object|null>} Cliente ou null
+   * 
+   * @abstract
+   */
+  async findById(id) {
+    throw new Error('findById() deve ser implementado');
+  }
+
+  /**
+   * Atualizar cliente
+   * 
+   * @param {string} id - UUID do cliente
+   * @param {Object} data - Dados a atualizar
+   * @param {Object} options - Opções (transaction, etc)
+   * @returns {Promise<Object>} Cliente atualizado
+   * @throws {AppError}
+   * 
+   * @abstract
+   */
+  async update(id, data, options = {}) {
+    throw new Error('update() deve ser implementado');
+  }
+
+  /**
+   * Deletar cliente (soft delete)
+   * 
+   * @param {string} id - UUID do cliente
+   * @param {Object} options - Opções (transaction, etc)
+   * @returns {Promise<void>}
+   * @throws {AppError}
+   * 
+   * @abstract
+   */
+  async delete(id, options = {}) {
+    throw new Error('delete() deve ser implementado');
+  }
+}
+
+module.exports = IClientRepository;
+--- END FILE ---
+
+--------------------------------------------------------------------------------
 FILE: src/domain/interfaces/IFlagRepository.js
 --------------------------------------------------------------------------------
 /**
@@ -3602,6 +4788,12 @@ class IFlagRepository {
    * Buscar flag por ID
    * @param {string} id - UUID da flag
    * @returns {Promise<Flag|null>}
+   */
+
+  /**
+   * Buscar múltiplas flags por IDs (uma única query)
+   * @param {string[]} ids - Array de IDs de bandeiras
+   * @returns {Promise<Flag[]>} Array com as bandeiras encontradas
    */
   async findById(id) {
     throw new Error('Método findById não implementado');
@@ -3715,12 +4907,80 @@ FILE: src/domain/interfaces/IReportRepository.js
  * Interface para repositório de relatórios
  * Define o contrato que a infraestrutura deve implementar
  */
+
+const AppError = require('../../shared/utils/AppError')
+
 class IReportRepository {
-  async getSalesReportData(filters, pagination) { throw new Error('Not implemented'); }
-  async getSalesReportSummary(filters) { throw new Error('Not implemented'); }
+  async getSalesReportData(filters, pagination) { throw new AppError('Not implemented'); }
+  async getSalesReportSummary(filters) { throw new AppError('Not implemented'); }
 }
 
 module.exports = IReportRepository;
+--- END FILE ---
+
+--------------------------------------------------------------------------------
+FILE: src/domain/interfaces/IStorageRepository.js
+--------------------------------------------------------------------------------
+/**
+ * INTERFACE: IStorageRepository
+ * 
+ * Responsabilidade: Contrato para operações de armazenamento (Cloudinary, S3, etc)
+ * 
+ * ✅ Permite trocar provider de storage sem alterar lógica de domínio
+ * ✅ Implementado em JavaScript puro (sem TypeScript)
+ * 
+ * @abstract
+ */
+
+class IStorageRepository {
+  /**
+   * Fazer upload de arquivo
+   * 
+   * @param {Buffer} buffer - Conteúdo do arquivo em bytes
+   * @param {string} filename - Nome customizado para o arquivo
+   * @returns {Promise<{public_id: string, url: string, size: number}>}
+   * @throws {AppError}
+   * 
+   * @abstract
+   */
+  async upload(buffer, filename) {
+    throw new Error(
+      'upload() deve ser implementado na classe filha'
+    );
+  }
+
+  /**
+   * Deletar arquivo
+   * 
+   * @param {string} publicId - ID público do arquivo no storage
+   * @returns {Promise<void>}
+   * @throws {AppError}
+   * 
+   * @abstract
+   */
+  async delete(publicId) {
+    throw new Error(
+      'delete() deve ser implementado na classe filha'
+    );
+  }
+
+  /**
+   * Download de arquivo como buffer
+   * 
+   * @param {string} publicId - ID público do arquivo no storage
+   * @returns {Promise<{buffer: Buffer, contentType: string}>}
+   * @throws {AppError}
+   * 
+   * @abstract
+   */
+  async download(publicId) {
+    throw new Error(
+      'download() deve ser implementado na classe filha'
+    );
+  }
+}
+
+module.exports = IStorageRepository;
 --- END FILE ---
 
 --------------------------------------------------------------------------------
@@ -3732,26 +4992,28 @@ FILE: src/domain/interfaces/IUserRepository.js
  * ⚠️ Adicionar novos métodos para User Management
  */
 
+const AppError = require('../../shared/utils/AppError')
+
 class IUserRepository {
   // === AUTH (já existem) ===
   async findByEmail(email) {
-    throw new Error('Método findByEmail não implementado');
+    throw new AppError('Método findByEmail não implementado');
   }
 
   async findByIdWithPassword(userId) {
-    throw new Error('Método findByIdWithPassword não implementado');
+    throw new AppError('Método findByIdWithPassword não implementado');
   }
 
   async findById(userId) {
-    throw new Error('Método findById não implementado');
+    throw new AppError('Método findById não implementado');
   }
 
   async updatePassword(userId, newPassword) {
-    throw new Error('Método updatePassword não implementado');
+    throw new AppError('Método updatePassword não implementado');
   }
 
   async updateLastLogin(userId) {
-    throw new Error('Método updateLastLogin não implementado');
+    throw new AppError('Método updateLastLogin não implementado');
   }
 
   // === USER MANAGEMENT (novos) ===
@@ -3760,42 +5022,42 @@ class IUserRepository {
    * Listar usuários com filtros
    */
   async list(filters) {
-    throw new Error('Método list não implementado');
+    throw new AppError('Método list não implementado');
   }
 
   /**
    * Criar novo usuário
    */
   async create(user, password) {
-    throw new Error('Método create não implementado');
+    throw new AppError('Método create não implementado');
   }
 
   /**
    * Atualizar dados do usuário
    */
   async update(userId, data) {
-    throw new Error('Método update não implementado');
+    throw new AppError('Método update não implementado');
   }
 
   /**
    * Verificar se email está em uso
    */
   async isEmailInUse(email, excludeUserId = null) {
-    throw new Error('Método isEmailInUse não implementado');
+    throw new AppError('Método isEmailInUse não implementado');
   }
 
   /**
    * Desativar usuário
    */
   async deactivate(userId) {
-    throw new Error('Método deactivate não implementado');
+    throw new AppError('Método deactivate não implementado');
   }
 
   /**
    * Reativar usuário
    */
   async reactivate(userId) {
-    throw new Error('Método reactivate não implementado');
+    throw new AppError('Método reactivate não implementado');
   }
 }
 
@@ -4442,7 +5704,12 @@ const waitForRedis = () => {
     } else {
       redis.once('ready', () => resolve(redis));
       redis.once('error', (err) => reject(err));
-      setTimeout(() => reject(new Error('Redis timeout')), 5000);
+      const timer = setTimeout(() => reject(new Error('Redis timeout')), 5000);
+      timer.unref();
+      redis.once('ready', () => {
+      clearTimeout(timer);
+      resolve(redis);
+    });
     }
   });
 };
@@ -4678,148 +5945,77 @@ module.exports = {
 FILE: src/infrastructure/container/OnboardingContainer.js
 --------------------------------------------------------------------------------
 /**
- * CONTAINER: Onboarding Dependencies
+ * CONTAINER: Onboarding
  * 
- * Injeção de dependências centralizada para Onboarding
- * Responsabilidade: Instanciar e injetar todos os use cases atômicos
+ * Responsabilidade: Injetar TODAS as dependências para onboarding
  * 
- * Padrão: Dependency Injection
- * Benefício: Fácil mockar em testes, centralizar dependências
+ * ✅ AGORA COM:
+ * - clientDocumentRepository (NOVO!)
+ * - storageRepository (NOVO!)
+ * - ProcessClientDocumentsUseCase
+ * - CreateClientUseCase
  */
 
-const { UserRepository, RefreshTokenRepository } = require('../repositories');
-const {
-  ValidatePlanOrFlagsUseCase,
-  CreateClientUseCase,
-  CreateBankAccountUseCase,
-  CreateSaleUseCase,
-  AssociateFlagsUseCase,
-  ProcessDocumentsUseCase,
-  OnboardClientUseCase,
-} = require('../../application/use-cases/onboarding');
+const CreateClientUseCase = require('../../application/use-cases/onboarding/CreateClientUseCase');
+const ProcessClientDocumentsUseCase = require('../../application/use-cases/onboarding/ProcessClientDocumentsUseCase');
+const StorageRepository = require('../repositories/StorageRepository');
+const logger = require('../config/logger');
 
 class OnboardingContainer {
-  constructor() {
-    // ═══════════════════════════════════════════════════════════
-    // INSTANCIAR REPOSITÓRIOS (singleton)
-    // ═══════════════════════════════════════════════════════════
-    this.userRepository = new UserRepository();
-    this.refreshTokenRepository = new RefreshTokenRepository();
+  constructor(
+    clientRepository,
+    planRepository,
+    flagRepository,
+    clientFlagRepository,
+    clientBankAccountRepository,
+    clientDocumentRepository,  // ✅ ADICIONADO
+    sequelize
+  ) {
+    this.clientRepository = clientRepository;
+    this.planRepository = planRepository;
+    this.flagRepository = flagRepository;
+    this.clientFlagRepository = clientFlagRepository;
+    this.clientBankAccountRepository = clientBankAccountRepository;
+    this.clientDocumentRepository = clientDocumentRepository;  // ✅ ARMAZENADO
+    this.sequelize = sequelize;
 
-    // ═══════════════════════════════════════════════════════════
-    // INSTANCIAR USE CASES ATÔMICOS (singleton)
-    // ═══════════════════════════════════════════════════════════
+    // ✅ Instanciar StorageRepository
+    this.storageRepository = new StorageRepository();
 
-    /**
-     * USE CASE: Validar Plano ou Bandeiras
-     * Dependências: nenhuma (queries ao BD via models diretamente)
-     */
-    this.validatePlanOrFlagsUseCase = new ValidatePlanOrFlagsUseCase();
-
-    /**
-     * USE CASE: Criar Cliente
-     * Dependências: nenhuma (queries ao BD via models diretamente)
-     */
-    this.createClientUseCase = new CreateClientUseCase();
-
-    /**
-     * USE CASE: Criar Conta Bancária
-     * Dependências: nenhuma (queries ao BD via models diretamente)
-     */
-    this.createBankAccountUseCase = new CreateBankAccountUseCase();
-
-    /**
-     * USE CASE: Criar Venda
-     * Dependências: nenhuma (queries ao BD via models diretamente)
-     */
-    this.createSaleUseCase = new CreateSaleUseCase();
-
-    /**
-     * USE CASE: Associar Bandeiras
-     * Dependências: nenhuma (queries ao BD via models diretamente)
-     */
-    this.associateFlagsUseCase = new AssociateFlagsUseCase();
-
-    /**
-     * USE CASE: Processar Documentos
-     * Dependências: StorageService (upload para Cloudinary)
-     */
-    this.processDocumentsUseCase = new ProcessDocumentsUseCase();
-
-    /**
-     * USE CASE: Onboard Client (MAESTRIA)
-     * Orquestra todos os use cases atômicos acima
-     * Dependências: Todos os use cases atômicos
-     */
-    this.onboardClientUseCase = new OnboardClientUseCase();
+    logger.info(
+      '[OnboardingContainer] Inicializado com TODAS as dependências'
+    );
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // GETTERS: Recuperar use cases
-  // ═══════════════════════════════════════════════════════════
-
   /**
-   * Obter use case principal de onboarding
-   * @returns {OnboardClientUseCase}
+   * Obter ProcessClientDocumentsUseCase
    */
-  getOnboardClientUseCase() {
-    return this.onboardClientUseCase;
+  getProcessClientDocumentsUseCase() {
+    return new ProcessClientDocumentsUseCase(
+      this.clientDocumentRepository,  // ✅ AGORA INJETADO
+      this.storageRepository
+    );
   }
 
   /**
-   * Obter use case de validação
-   * @returns {ValidatePlanOrFlagsUseCase}
-   */
-  getValidatePlanOrFlagsUseCase() {
-    return this.validatePlanOrFlagsUseCase;
-  }
-
-  /**
-   * Obter use case de criação de cliente
-   * @returns {CreateClientUseCase}
+   * Obter CreateClientUseCase com TODAS as dependências
    */
   getCreateClientUseCase() {
-    return this.createClientUseCase;
-  }
-
-  /**
-   * Obter use case de criação de conta bancária
-   * @returns {CreateBankAccountUseCase}
-   */
-  getCreateBankAccountUseCase() {
-    return this.createBankAccountUseCase;
-  }
-
-  /**
-   * Obter use case de criação de venda
-   * @returns {CreateSaleUseCase}
-   */
-  getCreateSaleUseCase() {
-    return this.createSaleUseCase;
-  }
-
-  /**
-   * Obter use case de associação de bandeiras
-   * @returns {AssociateFlagsUseCase}
-   */
-  getAssociateFlagsUseCase() {
-    return this.associateFlagsUseCase;
-  }
-
-  /**
-   * Obter use case de processamento de documentos
-   * @returns {ProcessDocumentsUseCase}
-   */
-  getProcessDocumentsUseCase() {
-    return this.processDocumentsUseCase;
+    return new CreateClientUseCase(
+      this.clientRepository,
+      this.planRepository,
+      this.flagRepository,
+      this.clientFlagRepository,
+      this.clientBankAccountRepository,
+      this.clientDocumentRepository,  // ✅ ADICIONADO
+      this.getProcessClientDocumentsUseCase(),
+      this.storageRepository,  // ✅ ADICIONADO
+      this.sequelize
+    );
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// EXPORTAR SINGLETON
-// ═══════════════════════════════════════════════════════════
-
-module.exports = new OnboardingContainer();
+module.exports = OnboardingContainer;
 --- END FILE ---
 
 --------------------------------------------------------------------------------
@@ -4947,58 +6143,6 @@ db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
 module.exports = db;
---- END FILE ---
-
---------------------------------------------------------------------------------
-FILE: src/infrastructure/database/migrations/20260101000000-create-machines-table.js
---------------------------------------------------------------------------------
-'use strict';
-
-module.exports = {
-  async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('machines', {
-      id: {
-        type: Sequelize.UUID,
-        defaultValue: Sequelize.literal('gen_random_uuid()'),
-        primaryKey: true,
-      },
-      name: {
-        type: Sequelize.STRING(100),
-        allowNull: false,
-        unique: true,
-      },
-      code: {
-        type: Sequelize.STRING(50),
-        allowNull: true,
-      },
-      is_active: {
-        type: Sequelize.BOOLEAN,
-        defaultValue: true,
-      },
-      created_at: {
-        type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('NOW()'),
-      },
-      updated_at: {
-        type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('NOW()'),
-      },
-      deleted_at: {
-        type: Sequelize.DATE,
-        allowNull: true,
-      },
-    });
-
-    await queryInterface.addIndex('machines', ['name'], { unique: true });
-    await queryInterface.addIndex('machines', ['is_active']);
-  },
-
-  async down(queryInterface) {
-    await queryInterface.dropTable('machines');
-  },
-};
 --- END FILE ---
 
 --------------------------------------------------------------------------------
@@ -5228,156 +6372,257 @@ FILE: src/infrastructure/database/migrations/20260310000004-create-clients.js
 'use strict';
 
 /** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('clients', {
+      // ─── ID ──────────────────────────────────────────────────
       id: {
         type: Sequelize.UUID,
         defaultValue: Sequelize.literal('gen_random_uuid()'),
         primaryKey: true,
         allowNull: false,
       },
+
+      // ─── PROTOCOLO E STATUS ──────────────────────────────────
       protocol: {
         type: Sequelize.STRING(20),
         allowNull: false,
-      },
-      corporate_name: {
-        type: Sequelize.STRING(255),
-        allowNull: false,
-      },
-      trade_name: {
-        type: Sequelize.STRING(255),
-        allowNull: true,
-      },
-      responsible_name: {
-        type: Sequelize.STRING(255),
-        allowNull: false,
-      },
-      cnpj: {
-        type: Sequelize.STRING(18),
-        allowNull: false,
-      },
-      state_registration: {
-        type: Sequelize.STRING(15),
-        allowNull: true,
         unique: true,
+        comment: 'Número único de protocolo do onboarding',
       },
-      machine_id: {
-        type: Sequelize.UUID,
-        allowNull: true,
-        references: { model: 'machines', key: 'id' },
-        onUpdate: 'CASCADE',
-        onDelete: 'SET NULL',
-      },
-      machine_affiliation_code: {
-        type: Sequelize.STRING(100),
-        allowNull: true,
-      },
-      phone: {
-        type: Sequelize.STRING(20),
-        allowNull: false,
-      },
-      email: {
-        type: Sequelize.STRING(255),
-        allowNull: false,
-        unique: true,
-      },
-      address_street: {
-        type: Sequelize.STRING(255),
-        allowNull: false,
-      },
-      address_number: {
-        type: Sequelize.STRING(10),
-        allowNull: false,
-      },
-      address_complement: {
-        type: Sequelize.STRING(100),
-        allowNull: true,
-      },
-      address_neighborhood: {
-        type: Sequelize.STRING(100),
-        allowNull: true,
-      },
-      address_city: {
-        type: Sequelize.STRING(100),
-        allowNull: false,
-      },
-      address_state: {
-        type: Sequelize.STRING(2),
-        allowNull: false,
-      },
-      address_zip: {
-        type: Sequelize.STRING(9),
-        allowNull: false,
-      },
+
       overall_status: {
         type: Sequelize.ENUM('pending', 'analysis', 'approved'),
         allowNull: false,
         defaultValue: 'pending',
+        comment: 'Status geral do cliente (pending, analysis, approved)',
       },
-      notes: {
-        type: Sequelize.TEXT,
-        allowNull: true,
-      },
-      created_by: {
-        type: Sequelize.UUID,
+
+      // ─── DADOS BÁSICOS ───────────────────────────────────────
+      corporate_name: {
+        type: Sequelize.STRING(255),
         allowNull: false,
-        references: { model: 'users', key: 'id' },
-        onUpdate: 'CASCADE',
-        onDelete: 'RESTRICT',
+        comment: 'Razão social da empresa',
       },
-      partner_id: {
-        type: Sequelize.UUID,
+
+      trade_name: {
+        type: Sequelize.STRING(255),
         allowNull: true,
-        references: { model: 'users', key: 'id' },
-        onUpdate: 'CASCADE',
-        onDelete: 'SET NULL',
+        comment: 'Nome fantasia da empresa',
       },
+
+      responsible_name: {
+        type: Sequelize.STRING(255),
+        allowNull: false,
+        comment: 'Nome do responsável legal',
+      },
+
+      cnpj: {
+        type: Sequelize.STRING(18),
+        allowNull: false,
+        comment: 'CNPJ com máscara (XX.XXX.XXX/XXXX-XX)',
+      },
+
+      state_registration: {
+        type: Sequelize.STRING(15),
+        allowNull: true,
+        comment: 'Inscrição estadual',
+      },
+
+      phone: {
+        type: Sequelize.STRING(20),
+        allowNull: false,
+        comment: 'Telefone do cliente',
+      },
+
+      email: {
+        type: Sequelize.STRING(255),
+        allowNull: false,
+        comment: 'Email do cliente',
+      },
+
       benefit_type: {
         type: Sequelize.ENUM('food', 'meal', 'both'),
         allowNull: false,
+        comment: 'Tipo de benefício: food, meal, ou both',
       },
+
+      // ─── MÁQUINA ──────────────────────────────────────────────
+      
+      machine_name: {
+        type: Sequelize.STRING(255),
+        allowNull: true,
+        comment: 'Nome da máquina (ex: Máquina A, Terminal 01)',
+      },
+
+      machine_affiliation_code: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+        comment: 'Código de filiação/afiliação da máquina',
+      },
+
+      // ─── ENDEREÇO ────────────────────────────────────────────
+      address_street: {
+        type: Sequelize.STRING(255),
+        allowNull: false,
+        comment: 'Rua/avenida do endereço',
+      },
+
+      address_number: {
+        type: Sequelize.STRING(10),
+        allowNull: false,
+        comment: 'Número do imóvel',
+      },
+
+      address_complement: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+        comment: 'Complemento (apto, sala, etc)',
+      },
+
+      address_neighborhood: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+        comment: 'Bairro',
+      },
+
+      address_city: {
+        type: Sequelize.STRING(100),
+        allowNull: false,
+        comment: 'Cidade',
+      },
+
+      address_state: {
+        type: Sequelize.STRING(2),
+        allowNull: false,
+        comment: 'UF (XX)',
+      },
+
+      address_zip: {
+        type: Sequelize.STRING(9),
+        allowNull: false,
+        comment: 'CEP (XXXXX-XXX ou XXXXXXXXX)',
+      },
+
+      // ─── RELACIONAMENTOS ────────────────────────────────────
+      created_by: {
+        type: Sequelize.UUID,
+        allowNull: false,
+        references: {
+          model: 'users',
+          key: 'id',
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'RESTRICT',
+        comment: 'Usuário que criou o cliente',
+      },
+
+      partner_id: {
+        type: Sequelize.UUID,
+        allowNull: true,
+        references: {
+          model: 'users',
+          key: 'id',
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+        comment: 'Parceiro responsável pelo cliente',
+      },
+
+      // ─── DADOS ADICIONAIS ───────────────────────────────────
+      notes: {
+        type: Sequelize.TEXT,
+        allowNull: true,
+        comment: 'Notas e observações sobre o cliente',
+      },
+
+      // ─── TIMESTAMPS E SOFT DELETE ────────────────────────────
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.literal('NOW()'),
       },
+
       updated_at: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.literal('NOW()'),
       },
+
       deleted_at: {
         type: Sequelize.DATE,
         allowNull: true,
+        comment: 'Data de soft delete',
       },
     });
 
-    // Índices únicos parciais (apenas registros não deletados)
+    // ─── ÍNDICES ÚNICOS PARCIAIS ────────────────────────────────
+    // Apenas registros NÃO deletados
     await queryInterface.addIndex('clients', ['protocol'], {
       unique: true,
       name: 'clients_protocol_unique_active',
       where: { deleted_at: null },
     });
+
     await queryInterface.addIndex('clients', ['cnpj'], {
       unique: true,
       name: 'clients_cnpj_unique_active',
       where: { deleted_at: null },
     });
 
-    // Índices comuns
-    await queryInterface.addIndex('clients', ['created_by'], { name: 'clients_created_by_idx' });
-    await queryInterface.addIndex('clients', ['partner_id'], { name: 'clients_partner_id_idx' });
-    await queryInterface.addIndex('clients', ['overall_status'], { name: 'clients_overall_status_idx' });
-    await queryInterface.addIndex('clients', ['corporate_name'], { name: 'clients_corporate_name_idx' });
-    await queryInterface.addIndex('clients', ['partner_id', 'overall_status'], { name: 'clients_partner_status_idx' });
-    await queryInterface.addIndex('clients', ['machine_id'], { name: 'clients_machine_id_idx' });
+    await queryInterface.addIndex('clients', ['email'], {
+      unique: true,
+      name: 'clients_email_unique_active',
+      where: { deleted_at: null },
+    });
+
+    // ─── ÍNDICES COMUNS ─────────────────────────────────────────
+    await queryInterface.addIndex('clients', ['created_by'], {
+      name: 'clients_created_by_idx',
+    });
+
+    await queryInterface.addIndex('clients', ['partner_id'], {
+      name: 'clients_partner_id_idx',
+    });
+
+    await queryInterface.addIndex('clients', ['overall_status'], {
+      name: 'clients_overall_status_idx',
+    });
+
+    await queryInterface.addIndex('clients', ['corporate_name'], {
+      name: 'clients_corporate_name_idx',
+    });
+
+    // ─── ÍNDICES COMPOSTOS (QUERIES COMUNS) ──────────────────────
+    await queryInterface.addIndex(
+      'clients',
+      ['partner_id', 'overall_status'],
+      {
+        name: 'clients_partner_status_idx',
+      }
+    );
+
+    await queryInterface.addIndex('clients', ['benefit_type'], {
+      name: 'clients_benefit_type_idx',
+    });
+
+    await queryInterface.addIndex('clients', ['created_by', 'overall_status'], {
+      name: 'clients_creator_status_idx',
+    });
   },
 
   async down(queryInterface) {
     await queryInterface.dropTable('clients');
-    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_clients_overall_status";');
-    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_clients_benefit_type";');
+
+    // ✅ Limpar ENUMs criados
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_clients_overall_status";'
+    );
+
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_clients_benefit_type";'
+    );
   },
 };
 --- END FILE ---
@@ -6143,6 +7388,7 @@ FILE: src/infrastructure/repositories/FlagRepository.js
  */
 
 const { Op } = require('sequelize');
+const logger = require('../../config/logger');
 const Flag = require('../../domain/entities/Flag');
 const IFlagRepository = require('../../domain/interfaces/IFlagRepository');
 const { Flag: FlagModel } = require('./models');
@@ -6163,6 +7409,40 @@ class FlagRepository extends IFlagRepository {
       return this.modelToEntity(model);
     } catch (error) {
       console.error('[FlagRepository.findById] Erro:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Buscar múltiplas flags em UMA ÚNICA query
+   * @param {string[]} ids - Array de IDs
+   * @returns {Promise<Flag[]>}
+   */
+  async findByIds(ids) {
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return [];
+      }
+
+      // ✅ Sequelize: findAll com WHERE IN
+      const flags = await this.FlagModel.findAll({
+        where: {
+          id: ids,  // ✅ Sequelize converte para WHERE id IN (?, ?, ...)
+        },
+        attributes: ['id', 'name', 'is_active', 'created_at'],
+      });
+
+      logger.debug(
+        { foundCount: flags.length, requestedCount: ids.length },
+        '[FlagRepository.findByIds] Flags recuperadas'
+      );
+
+      return flags;
+    } catch (error) {
+      logger.error(
+        { error: error.message, idCount: ids.length },
+        '[FlagRepository.findByIds]'
+      );
       throw error;
     }
   }
@@ -6338,142 +7618,249 @@ module.exports = {
 --------------------------------------------------------------------------------
 FILE: src/infrastructure/repositories/models/Client.js
 --------------------------------------------------------------------------------
-const { DataTypes } = require('sequelize');
+const { Model, DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
-  const Client = sequelize.define(
-    'Client',
+  class Client extends Model {}
+
+  Client.init(
     {
       id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
       },
+
+      // ─── PROTOCOLO E STATUS ──────────────────────────────────
       protocol: {
         type: DataTypes.STRING(20),
         allowNull: false,
-        // unique: true removido – índice parcial na migration
+        unique: true,
+        validate: {
+          notEmpty: true,
+          len: [1, 20],
+        },
       },
-      corporate_name: {
-        type: DataTypes.STRING(200),
+
+      overall_status: {
+        type: DataTypes.ENUM('pending', 'analysis', 'approved'),
         allowNull: false,
+        defaultValue: 'pending',
+        validate: {
+          isIn: [['pending', 'analysis', 'approved']],
+        },
       },
+
+      // ─── DADOS BÁSICOS ───────────────────────────────────────
+      corporate_name: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        validate: {
+          notEmpty: true,
+          len: [3, 255],
+        },
+      },
+
       trade_name: {
-        type: DataTypes.STRING(200),
+        type: DataTypes.STRING(255),
         allowNull: true,
       },
+
       responsible_name: {
         type: DataTypes.STRING(255),
         allowNull: false,
+        validate: {
+          notEmpty: true,
+          len: [3, 255],
+        },
       },
+
       cnpj: {
         type: DataTypes.STRING(18),
         allowNull: false,
-        // unique: true removido – índice parcial na migration
+        validate: {
+          notEmpty: true,
+          len: [18, 18], // XX.XXX.XXX/XXXX-XX
+        },
       },
+
       state_registration: {
         type: DataTypes.STRING(15),
         allowNull: true,
-        field: 'state_registration',
-        unique: true, // Mantido porque não há soft delete para este campo (ou pode ser parcial se quiser)
       },
-      machine_id: {
-        type: DataTypes.UUID,
+
+      phone: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        validate: {
+          notEmpty: true,
+        },
+      },
+
+      email: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        unique: true,
+        validate: {
+          isEmail: true,
+        },
+      },
+
+      benefit_type: {
+        type: DataTypes.ENUM('food', 'meal', 'both'),
+        allowNull: false,
+        validate: {
+          isIn: [['food', 'meal', 'both']],
+        },
+      },
+
+      // ─── MÁQUINA (AGORA APENAS CAMPOS) ──────────────────────
+      // ✅ REMOVIDO: machine_id (FK)
+      // ✅ NOVO: machine_name e machine_affiliation_code
+      machine_name: {
+        type: DataTypes.STRING(255),
         allowNull: true,
-        references: { model: 'machines', key: 'id' },
       },
+
       machine_affiliation_code: {
         type: DataTypes.STRING(100),
         allowNull: true,
       },
-      phone: {
-        type: DataTypes.STRING(20),
-        allowNull: true,
-      },
-      email: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-        validate: { isEmail: true },
-      },
+
+      // ─── ENDEREÇO ────────────────────────────────────────────
       address_street: {
         type: DataTypes.STRING(255),
-        allowNull: true,
+        allowNull: false,
+        validate: {
+          notEmpty: true,
+        },
       },
+
       address_number: {
         type: DataTypes.STRING(10),
-        allowNull: true,
+        allowNull: false,
+        validate: {
+          notEmpty: true,
+        },
       },
+
       address_complement: {
         type: DataTypes.STRING(100),
         allowNull: true,
       },
+
       address_neighborhood: {
         type: DataTypes.STRING(100),
         allowNull: true,
       },
+
       address_city: {
         type: DataTypes.STRING(100),
-        allowNull: true,
+        allowNull: false,
+        validate: {
+          notEmpty: true,
+        },
       },
+
       address_state: {
         type: DataTypes.STRING(2),
-        allowNull: true,
+        allowNull: false,
+        validate: {
+          len: [2, 2],
+          isUppercase: true,
+        },
       },
+
       address_zip: {
         type: DataTypes.STRING(9),
-        allowNull: true,
+        allowNull: false,
+        validate: {
+          notEmpty: true,
+        },
       },
-      benefit_type: {
-        type: DataTypes.ENUM('food', 'meal', 'both'),
+
+      // ─── RELACIONAMENTOS ────────────────────────────────────
+      created_by: {
+        type: DataTypes.UUID,
         allowNull: false,
       },
-      overall_status: {
-        type: DataTypes.ENUM('pending', 'analysis', 'approved'),
-        defaultValue: 'pending',
+
+      partner_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
       },
+
+      // ─── DADOS ADICIONAIS ───────────────────────────────────
       notes: {
         type: DataTypes.TEXT,
         allowNull: true,
       },
-      created_by: {
-        type: DataTypes.UUID,
-        allowNull: false,
-        references: { model: 'users', key: 'id' },
-      },
-      partner_id: {
-        type: DataTypes.UUID,
-        allowNull: true,
-        references: { model: 'users', key: 'id' },
-      },
+
       deleted_at: {
         type: DataTypes.DATE,
         allowNull: true,
       },
     },
     {
+      sequelize,
+      modelName: 'Client',
       tableName: 'clients',
       timestamps: true,
-      paranoid: true,
+      paranoid: true, // ✅ Soft delete automático
       underscored: true,
-      indexes: [
-        { fields: ['created_by'] },
-        { fields: ['partner_id'] },
-        { fields: ['overall_status'] },
-        { fields: ['benefit_type'] },
-        { fields: ['machine_id'] },
-        // protocol e cnpj terão índices únicos parciais na migration (ver abaixo)
-      ],
     }
   );
 
+  // ✅ Métodos de instância
+  Client.prototype.toJSON = function () {
+    const values = { ...this.get() };
+    delete values.deleted_at;
+    return values;
+  };
+
+  // ✅ Método para gerar protocolo único
+  Client.prototype.generateProtocol = function () {
+    // Formato: CLI-YYYYMMDD-XXXXXX (ex: CLI-20260408-A1B2C3)
+    const date = new Date();
+    const dateStr = date
+      .toISOString()
+      .split('T')[0]
+      .replace(/-/g, '');
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    this.protocol = `CLI-${dateStr}-${random}`;
+  };
+
+  // ✅ Associações
   Client.associate = (db) => {
-    Client.belongsTo(db.User, { foreignKey: 'created_by', as: 'creator' });
-    Client.belongsTo(db.User, { foreignKey: 'partner_id', as: 'partner' });
-    Client.belongsTo(db.Machine, { foreignKey: 'machine_id', as: 'machine' });
-    Client.hasMany(db.ClientFlag, { foreignKey: 'client_id', as: 'clientFlags' });
-    Client.hasMany(db.ClientDocument, { foreignKey: 'client_id', as: 'documents' });
-    Client.hasMany(db.ClientBankAccount, { foreignKey: 'client_id', as: 'bankAccounts' });
-    Client.hasMany(db.Sale, { foreignKey: 'client_id', as: 'sales' });
+    Client.belongsTo(db.User, {
+      foreignKey: 'created_by',
+      as: 'creator',
+    });
+
+    Client.belongsTo(db.User, {
+      foreignKey: 'partner_id',
+      as: 'partner',
+    });
+
+    Client.hasMany(db.ClientFlag, {
+      foreignKey: 'client_id',
+      as: 'flags',
+    });
+
+    Client.hasMany(db.ClientBankAccount, {
+      foreignKey: 'client_id',
+      as: 'bankAccounts',
+    });
+
+    Client.hasMany(db.ClientDocument, {
+      foreignKey: 'client_id',
+      as: 'documents',
+    });
+
+    Client.hasMany(db.Sale, {
+      foreignKey: 'client_id',
+      as: 'sales',
+    });
   };
 
   return Client;
@@ -7812,6 +9199,128 @@ module.exports = new ReportRepository();
 --- END FILE ---
 
 --------------------------------------------------------------------------------
+FILE: src/infrastructure/repositories/StorageRepository.js
+--------------------------------------------------------------------------------
+/**
+ * REPOSITORY: StorageRepository (Cloudinary Implementation)
+ * 
+ * Implementação concreta de IStorageRepository usando Cloudinary
+ * 
+ * ✅ Segue contrato definido em IStorageRepository
+ * ✅ Desacoplado de lógica de negócio
+ * ✅ Pode ser substituído por S3Repository, AzureRepository, etc
+ */
+
+const IStorageRepository = require('../../domain/interfaces/IStorageRepository');
+const cloudinary = require('../config/cloudinary');
+const AppError = require('../../shared/utils/AppError');
+const logger = require('../config/logger');
+
+class StorageRepository extends IStorageRepository {
+  /**
+   * Fazer upload para Cloudinary
+   */
+  async upload(buffer, filename) {
+    try {
+      return await new Promise((resolve, reject) => {
+        const uploadOptions = {
+          folder: 'bgrepresentacoes',
+          type: 'authenticated',
+          resource_type: 'auto',
+          public_id: filename || `file_${Date.now()}`,
+          use_filename: false,
+          unique_filename: true,
+          discard_original_filename: true,
+          overwrite: true,
+        };
+
+        const uploadStream = cloudinary.uploader.upload_stream(
+          uploadOptions,
+          (error, result) => {
+            if (error) {
+              logger.error(
+                { error: error.message, filename },
+                '[StorageRepository.upload] Erro no upload'
+              );
+              return reject(
+                new AppError('Erro ao fazer upload', 500, 'UPLOAD_ERROR')
+              );
+            }
+            resolve({
+              public_id: result.public_id,
+              url: result.secure_url,
+              size: result.bytes,
+            });
+          }
+        );
+
+        uploadStream.end(buffer);
+      });
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Erro ao fazer upload', 500, 'UPLOAD_ERROR');
+    }
+  }
+
+  /**
+   * Deletar do Cloudinary
+   */
+  async delete(publicId) {
+    try {
+      await cloudinary.uploader.destroy(publicId);
+      logger.debug(
+        { publicId },
+        '[StorageRepository.delete] Arquivo deletado'
+      );
+    } catch (error) {
+      logger.warn(
+        { error: error.message, publicId },
+        '[StorageRepository.delete] Erro ao deletar (ignora)'
+      );
+      // Não lança erro - a limpeza não pode quebrar o fluxo
+    }
+  }
+
+  /**
+   * Download como buffer
+   */
+  async download(publicId) {
+    try {
+      return await new Promise((resolve, reject) => {
+        const url = cloudinary.url(publicId, { secure: true });
+        const protocol = url.startsWith('https') ? require('https') : require('http');
+
+        protocol.get(url, (res) => {
+          let data = Buffer.alloc(0);
+
+          res.on('data', (chunk) => {
+            data = Buffer.concat([data, chunk]);
+          });
+
+          res.on('end', () => {
+            resolve({
+              buffer: data,
+              contentType: res.headers['content-type'] || 'application/octet-stream',
+            });
+          });
+
+          res.on('error', reject);
+        });
+      });
+    } catch (error) {
+      logger.error(
+        { error: error.message, publicId },
+        '[StorageRepository.download] Erro ao baixar'
+      );
+      throw new AppError('Erro ao baixar arquivo', 500, 'DOWNLOAD_ERROR');
+    }
+  }
+}
+
+module.exports = StorageRepository;
+--- END FILE ---
+
+--------------------------------------------------------------------------------
 FILE: src/infrastructure/repositories/UserRepository.js
 --------------------------------------------------------------------------------
 /**
@@ -8106,6 +9615,7 @@ class UserRepository extends IUserRepository {
       id: model.id,
       name: model.name,
       email: model.email,
+      password: model.password,
       role: model.role,
       is_active: model.is_active,
       last_login_at: model.last_login_at,
@@ -10130,37 +11640,281 @@ module.exports = FlagController;
 FILE: src/interfaces/http/controllers/OnboardingController.js
 --------------------------------------------------------------------------------
 /**
- * CONTROLLER: OnboardingController
- * Responsabilidade: APENAS HTTP
+ * CONTROLLER: Onboarding
+ * 
+ * Responsabilidade: HTTP Layer - Receber requisição, delegar para Use Case, retornar resposta
+ * 
+ * ✅ IMPLEMENTAÇÕES:
+ * - Injeção de dependência via Container
+ * - Use Cases desacoplados
+ * - Tratamento de erros robusto
+ * - Logs estruturados
+ * - Response DTOs
+ * - Validação de input via Yup middleware
+ * - Tratamento de arquivos (multipart/form-data)
+ * - Soft delete support
  */
 
+const logger = require('../../../infrastructure/config/logger');
+const AppError = require('../../../shared/utils/AppError');
 const catchAsync = require('../../../shared/utils/catchAsync');
-const onboardingContainer = require('../../../infrastructure/container/OnboardingContainer');
-const { OnboardClientDTO } = require('../../../application/dtos/onboarding');
 
 class OnboardingController {
   /**
-   * POST /api/v1/onboarding
-   * Iniciar onboarding de cliente
+   * Constructor com injeção de dependência
+   * @param {OnboardingContainer} onboardingContainer - Container com Use Cases injetados
    */
-  static start = catchAsync(async (req, res) => {
-    // ✅ PASSO 1: Validar entrada com Yup (middleware)
-    // req.body já foi validado pelo validationMiddleware + onboardingSchema
+  constructor(onboardingContainer) {
+    if (!onboardingContainer) {
+      throw new Error('OnboardingContainer deve ser injetado no controller');
+    }
+    this.onboardingContainer = onboardingContainer;
+  }
 
-    // ✅ PASSO 2: Criar DTO
-    const dto = OnboardClientDTO.validate(req.body);
+  /**
+   * POST /api/v1/onboarding
+   * 
+   * Criar novo cliente via processo de onboarding unificado
+   * 
+   * ✅ Fluxo:
+   * 1. Validação via middleware Yup (onboardingSchema)
+   * 2. Validação de arquivos (multipart)
+   * 3. Executa CreateClientUseCase com transaction
+   * 4. Processa documentos em paralelo
+   * 5. Retorna cliente criado com protocolo
+   * 
+   * @param {Request} req - Express request
+   * @param {Response} res - Express response
+   * @param {Function} next - Express next middleware
+   * @returns {Promise<Response>} JSON com cliente criado
+   */
+  create = catchAsync(async (req, res, next) => {
+    const transactionId = `onb-${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(7)}`;
 
-    // ✅ PASSO 3: Executar use case
-    const useCase = onboardingContainer.getOnboardClientUseCase();
-    const result = await useCase.execute(req.user, dto, req.files);
+    try {
+      logger.info(
+        {
+          transactionId,
+          cnpj: req.body.cnpj,
+          email: req.body.email,
+          filesCount: req.files ? Object.keys(req.files).length : 0,
+        },
+        '[OnboardingController.create] Iniciando onboarding'
+      );
 
-    // ✅ PASSO 4: Retornar resposta
-    return res.status(201).json({
-      status: 'success',
-      message: 'Onboarding e documentos processados com sucesso.',
-      data: result,
-    });
+      // ✅ PASSO 1: Validar que usuário está autenticado
+      if (!req.user || !req.user.id) {
+        throw new AppError(
+          'Usuário não autenticado',
+          401,
+          'UNAUTHORIZED'
+        );
+      }
+
+      // ✅ PASSO 2: Preparar DTO com dados validados
+      const onboardingDTO = this._prepareOnboardingDTO(req.body);
+
+      // ✅ PASSO 3: Executar CreateClientUseCase (validação + transação)
+      const createClientUseCase =
+        this.onboardingContainer.getCreateClientUseCase();
+
+      const client = await createClientUseCase.execute(
+        onboardingDTO,
+        req.user.id,
+        req.files
+      );
+
+      logger.info(
+        {
+          transactionId,
+          clientId: client.id,
+          protocol: client.protocol,
+          cnpj: client.cnpj,
+        },
+        '[OnboardingController.create] Cliente criado com sucesso'
+      );
+
+      // ✅ PASSO 4: Formatar resposta
+      const responseDTO = this._formatResponseDTO(client);
+
+      return res.status(201).json({
+        success: true,
+        status: 'success',
+        message: 'Onboarding concluído com sucesso',
+        data: responseDTO,
+        metadata: {
+          transactionId,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+    } catch (error) {
+      // ✅ Logging de erro
+      logger.error(
+        {
+          transactionId,
+          cnpj: req.body?.cnpj,
+          error: error.message,
+          errorCode: error.code || error.statusCode || 'UNKNOWN',
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        },
+        '[OnboardingController.create] Erro ao processar onboarding'
+      );
+
+      // Re-lançar para middleware de erro global
+      throw error;
+    }
   });
+
+  /**
+   * GET /api/v1/onboarding/status/:protocolId
+   * 
+   * Consultar status do onboarding via protocolo
+   * 
+   * @param {Request} req - Express request
+   * @param {Response} res - Express response
+   * @returns {Promise<Response>} Status do onboarding
+   */
+  getOnboardingStatus = catchAsync(async (req, res, next) => {
+    try {
+      const { protocolId } = req.params;
+
+      if (!protocolId) {
+        throw new AppError(
+          'Protocolo é obrigatório',
+          400,
+          'MISSING_PROTOCOL'
+        );
+      }
+
+      logger.debug(
+        { protocolId },
+        '[OnboardingController.getOnboardingStatus] Buscando status'
+      );
+
+      // ✅ Buscar via Use Case (quando implementado)
+      // const getStatusUseCase = this.onboardingContainer.getGetOnboardingStatusUseCase();
+      // const status = await getStatusUseCase.execute(protocolId);
+
+      // Por enquanto, placeholder
+      const status = {
+        protocol: protocolId,
+        status: 'pending',
+        created_at: new Date(),
+      };
+
+      return res.status(200).json({
+        success: true,
+        status: 'success',
+        data: status,
+      });
+
+    } catch (error) {
+      logger.error(
+        { error: error.message, protocolId: req.params.protocolId },
+        '[OnboardingController.getOnboardingStatus] Erro'
+      );
+      throw error;
+    }
+  });
+
+  /**
+   * ✅ HELPER: Preparar DTO com dados validados
+   * 
+   * Dados já foram validados pelo middleware Yup (onboardingSchema)
+   * Apenas formatamos e limpamos antes de passar para Use Case
+   * 
+   * @param {Object} rawData - Dados brutos do request.body
+   * @returns {Object} DTO formatado
+   */
+  _prepareOnboardingDTO(rawData) {
+    return {
+      // ─── CLIENTE ──────────────────────────────────────────
+      corporate_name: rawData.corporate_name?.trim(),
+      trade_name: rawData.trade_name?.trim() || null,
+      responsible_name: rawData.responsible_name?.trim(),
+      cnpj: rawData.cnpj?.replace(/\D/g, ''),  // Remove máscara
+      state_registration: rawData.state_registration?.trim() || null,
+      phone: rawData.phone?.trim(),
+      email: rawData.email?.toLowerCase().trim(),
+      benefit_type: rawData.benefit_type,
+      notes: rawData.notes?.trim() || null,
+
+      // ─── MÁQUINA ──────────────────────────────────────────
+      machine_name: rawData.machine_name?.trim() || null,
+      machine_affiliation_code: rawData.machine_affiliation_code?.trim() || null,
+
+      // ─── ENDEREÇO ─────────────────────────────────────────
+      address_street: rawData.address_street?.trim(),
+      address_number: rawData.address_number?.trim(),
+      address_complement: rawData.address_complement?.trim() || null,
+      address_neighborhood: rawData.address_neighborhood?.trim() || null,
+      address_city: rawData.address_city?.trim(),
+      address_state: rawData.address_state?.trim().toUpperCase(),
+      address_zip: rawData.address_zip?.replace(/\D/g, ''),  // Remove máscara
+
+      // ─── BANCO ────────────────────────────────────────────
+      bank_name: rawData.bank_name?.trim(),
+      agency: rawData.agency?.trim(),
+      agency_digit: rawData.agency_digit?.trim() || null,
+      account: rawData.account?.trim(),
+      account_digit: rawData.account_digit?.trim() || null,
+      account_type: rawData.account_type,
+
+      // ─── VENDA ────────────────────────────────────────────
+      plan_id: rawData.plan_id?.trim() || null,
+      flag_ids: Array.isArray(rawData.flag_ids)
+        ? rawData.flag_ids
+          .map(id => (typeof id === 'string' ? id.trim() : id))
+          .filter(id => id && id.length > 0)
+        : null,
+      partner_id: rawData.partner_id?.trim() || null,
+    };
+  }
+
+  /**
+   * ✅ HELPER: Formatar DTO de resposta
+   * 
+   * Transformar entidade Client para DTO de resposta (apenas dados públicos)
+   * 
+   * @param {Object} client - Cliente criado (entity)
+   * @returns {Object} DTO de resposta formatado
+   */
+  _formatResponseDTO(client) {
+    return {
+      id: client.id,
+      protocol: client.protocol,
+      corporate_name: client.corporate_name,
+      trade_name: client.trade_name,
+      responsible_name: client.responsible_name,
+      cnpj: client.cnpj,
+      email: client.email,
+      phone: client.phone,
+      benefit_type: client.benefit_type,
+      overall_status: client.overall_status,
+      
+      // Máquina
+      machine_name: client.machine_name,
+      machine_affiliation_code: client.machine_affiliation_code,
+
+      // Endereço (formatado)
+      address: {
+        street: client.address_street,
+        number: client.address_number,
+        complement: client.address_complement,
+        neighborhood: client.address_neighborhood,
+        city: client.address_city,
+        state: client.address_state,
+        zip: client.address_zip,
+      },
+
+      // Timestamps
+      created_at: client.created_at,
+      updated_at: client.updated_at,
+    };
+  }
 }
 
 module.exports = OnboardingController;
@@ -10335,6 +12089,7 @@ const {
   CreateUserDTO,
   UpdateUserDTO,
   UpdateProfileDTO,
+  ChangeOwnPasswordDTO
 } = require('../../../application/dtos/user');
 
 class UserController {
@@ -12259,30 +14014,92 @@ module.exports = router;
 --------------------------------------------------------------------------------
 FILE: src/interfaces/http/routes/onboardingRoutes.js
 --------------------------------------------------------------------------------
+/**
+ * ROUTES: Onboarding
+ * 
+ * Responsabilidade: Definir endpoints e middlewares
+ * 
+ * ✅ MIDDLEWARE STACK:
+ * 1. authMiddleware - Autenticação JWT
+ * 2. authorize - Autorização por role
+ * 3. onboardingUpload - Validação de arquivos
+ * 4. parseMultipartBody - Parse JSON + files
+ * 5. validate(onboardingSchema) - Validação Yup
+ * 6. validateFiles - Validação customizada de arquivos
+ * 7. OnboardingController - Execução
+ */
+
 const express = require('express');
 const router = express.Router();
+
+// ✅ Injetar dependências
+const OnboardingContainer = require('../../../infrastructure/container/OnboardingContainer');
 const OnboardingController = require('../controllers/OnboardingController');
+
+// Middleware
 const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
 const parseMultipartBody = require('../middlewares/parseMultipartBody');
 const { onboardingUpload } = require('../middlewares/uploadMiddleware');
 const { onboardingSchema } = require('../validators/onboardingValidator');
 const { validate } = require('../middlewares/validationMiddleware');
-const { validateFiles } = require('../middlewares/upload/fileValidationMiddleware')
+const { validateFiles } = require('../middlewares/upload/fileValidationMiddleware');
 
+// Logger
+const logger = require('../../../infrastructure/config/logger');
 
+// ✅ Repositories (exemplo - ajustar conforme seu projeto)
+const {
+  clientRepository,
+  planRepository,
+  flagRepository,
+  clientFlagRepository,
+  clientBankAccountRepository,
+  clientDocumentRepository
+} = require('../../../infrastructure/repositories');
+
+// ✅ Sequelize
+const sequelize = require('../../../infrastructure/repositories/models').sequelize;
+
+// ✅ Inicializar Container com dependências
+let onboardingContainer;
+let onboardingController;
+
+try {
+  onboardingContainer = new OnboardingContainer(
+    clientRepository,
+    planRepository,
+    flagRepository,
+    clientFlagRepository,
+    clientBankAccountRepository,
+    clientDocumentRepository,
+    sequelize
+  );
+
+  onboardingController = new OnboardingController(onboardingContainer);
+
+  logger.info(
+    '[onboardingRoutes] Container e Controller inicializados com sucesso'
+  );
+} catch (error) {
+  logger.error(
+    { error: error.message },
+    '[onboardingRoutes] ERRO ao inicializar Container/Controller'
+  );
+  throw error;
+}
 
 /**
  * @swagger
  * tags:
  *   name: Onboarding
- *   description: Processo de cadastro unificado de cliente (Onboarding)
+ *   description: Processo de cadastro unificado de cliente
  */
 
 /**
  * @swagger
- * /onboarding:
+ * /api/v1/onboarding:
  *   post:
- *     summary: Inicia o processo de cadastro unificado de cliente (Onboarding)
+ *     summary: Criar novo cliente via onboarding unificado
  *     tags: [Onboarding]
  *     security:
  *       - bearerAuth: []
@@ -12292,30 +14109,102 @@ const { validateFiles } = require('../middlewares/upload/fileValidationMiddlewar
  *         multipart/form-data:
  *           schema:
  *             type: object
+ *             required:
+ *               - corporate_name
+ *               - responsible_name
+ *               - cnpj
+ *               - email
+ *               - phone
+ *               - benefit_type
+ *               - address_street
+ *               - address_number
+ *               - address_city
+ *               - address_state
+ *               - address_zip
+ *               - bank_name
+ *               - agency
+ *               - account
+ *               - account_type
  *             properties:
- *               client_data:
+ *               corporate_name:
  *                 type: string
- *               bank_account_data:
+ *                 example: "Empresa LTDA"
+ *               responsible_name:
  *                 type: string
- *                 description: JSON string contendo os dados da conta bancária
- *               files:
+ *                 example: "João Silva"
+ *               cnpj:
+ *                 type: string
+ *                 example: "12.345.678/0001-90"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               phone:
+ *                 type: string
+ *                 example: "(11) 98765-4321"
+ *               benefit_type:
+ *                 type: string
+ *                 enum: [food, meal, both]
+ *               address_state:
+ *                 type: string
+ *                 example: "SP"
+ *               machine_name:
+ *                 type: string
+ *               machine_affiliation_code:
+ *                 type: string
+ *               plan_id:
+ *                 type: string
+ *                 format: uuid
+ *               flag_ids:
  *                 type: array
  *                 items:
  *                   type: string
- *                   format: binary
+ *                   format: uuid
  *     responses:
- *       200:
- *         description: Onboarding iniciado com sucesso
+ *       201:
+ *         description: Cliente criado com sucesso
+ *       400:
+ *         description: Validação falhou
+ *       401:
+ *         description: Não autenticado
  */
-router.post('/', authMiddleware, authorize('admin', 'user'),
-onboardingUpload, 
-parseMultipartBody, 
-validate(onboardingSchema, 'body'),
-validateFiles({
+router.post(
+  '/',
+  authMiddleware,
+  authorize('admin', 'user'),
+  onboardingUpload,
+  parseMultipartBody,
+  validate(onboardingSchema, 'body'),
+  validateFiles({
     contrato: { required: false, max: 1 },
     documentos: { required: false, max: 3 },
   }),
-OnboardingController.start);
+  onboardingController.create
+);
+
+/**
+ * @swagger
+ * /api/v1/onboarding/status/{protocol}:
+ *   get:
+ *     summary: Consultar status do onboarding
+ *     tags: [Onboarding]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: protocol
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Protocolo do onboarding
+ *     responses:
+ *       200:
+ *         description: Status do onboarding
+ */
+router.get(
+  '/status/:protocolId',
+  authMiddleware,
+  onboardingController.getOnboardingStatus
+);
 
 module.exports = router;
 --- END FILE ---
@@ -13216,6 +15105,91 @@ module.exports = { loginSchema, changePasswordSchema, refreshSchema, STRONG_PASS
 --- END FILE ---
 
 --------------------------------------------------------------------------------
+FILE: src/interfaces/http/validators/brazilianStates.js
+--------------------------------------------------------------------------------
+/**
+ * CONSTANTS: Estados Brasileiros
+ * Lista completa de UFs válidas no Brasil com seus nomes
+ * 
+ * Usado para validação de formulários de endereço
+ */
+
+const BRAZILIAN_STATES = {
+  'AC': 'Acre',
+  'AL': 'Alagoas',
+  'AP': 'Amapá',
+  'AM': 'Amazonas',
+  'BA': 'Bahia',
+  'CE': 'Ceará',
+  'DF': 'Distrito Federal',
+  'ES': 'Espírito Santo',
+  'GO': 'Goiás',
+  'MA': 'Maranhão',
+  'MT': 'Mato Grosso',
+  'MS': 'Mato Grosso do Sul',
+  'MG': 'Minas Gerais',
+  'PA': 'Pará',
+  'PB': 'Paraíba',
+  'PR': 'Paraná',
+  'PE': 'Pernambuco',
+  'PI': 'Piauí',
+  'RJ': 'Rio de Janeiro',
+  'RN': 'Rio Grande do Norte',
+  'RS': 'Rio Grande do Sul',
+  'RO': 'Rondônia',
+  'RR': 'Roraima',
+  'SC': 'Santa Catarina',
+  'SP': 'São Paulo',
+  'SE': 'Sergipe',
+  'TO': 'Tocantins',
+};
+
+/**
+ * Array de UFs válidas (apenas as chaves)
+ * Usado para validação rápida
+ */
+const VALID_STATES = Object.keys(BRAZILIAN_STATES);
+
+/**
+ * Validar se um estado é válido no Brasil
+ * 
+ * @param {string} state - Estado (ex: 'SP', 'RJ')
+ * @returns {boolean} True se válido, false caso contrário
+ * 
+ * @example
+ * isValidBrazilianState('SP') // true
+ * isValidBrazilianState('XX') // false
+ * isValidBrazilianState('sp') // true (case-insensitive)
+ */
+const isValidBrazilianState = (state) => {
+  if (!state || typeof state !== 'string') return false;
+  return VALID_STATES.includes(state.toUpperCase());
+};
+
+/**
+ * Obter nome completo de um estado pela UF
+ * 
+ * @param {string} uf - Sigla do estado (ex: 'SP')
+ * @returns {string|null} Nome do estado ou null se inválido
+ * 
+ * @example
+ * getStateName('SP') // 'São Paulo'
+ * getStateName('XX') // null
+ */
+const getStateName = (uf) => {
+  if (!uf) return null;
+  return BRAZILIAN_STATES[uf.toUpperCase()] || null;
+};
+
+module.exports = {
+  BRAZILIAN_STATES,
+  VALID_STATES,
+  isValidBrazilianState,
+  getStateName,
+};
+--- END FILE ---
+
+--------------------------------------------------------------------------------
 FILE: src/interfaces/http/validators/clientValidators.js
 --------------------------------------------------------------------------------
 const yup = require('yup');
@@ -13548,167 +15522,319 @@ FILE: src/interfaces/http/validators/onboardingValidator.js
 --------------------------------------------------------------------------------
 const yup = require('yup');
 const { cnpj } = require('cpf-cnpj-validator');
+const {
+  VALID_STATES,
+  isValidBrazilianState,
+} = require('./brazilianStates');
+
+const logger = require('../../config/logger');
+
+/**
+ * ✅ VALIDATOR: Onboarding Schema
+ * 
+ * Responsabilidade: Validar dados de onboarding do cliente
+ * 
+ * IMPLEMENTAÇÕES:
+ * A. Transform de arrays robusto (flag_ids)
+ * B. Validação de UF contra lista de estados brasileiros
+ * C. Método nativo .uuid() do Yup (em vez de regex)
+ * D. Tratamento seguro de null/undefined em transformations
+ * E. Custom messages em português
+ * F. Transformações de dados (trim, lowercase, etc)
+ * G. Regra de negócio: cliente deve ter plano OU bandeiras
+ */
 
 const onboardingSchema = yup.object().shape({
-
   // ─── CLIENTE ─────────────────────────────────────────────
+
   corporate_name: yup
     .string()
     .transform(v => v?.trim())
-    .max(255)
+    .max(255, 'Razão social não deve ultrapassar 255 caracteres')
     .required('Razão social obrigatória'),
 
   trade_name: yup
     .string()
-    .max(255)
+    .transform(v => v?.trim())
+    .max(255, 'Nome fantasia não deve ultrapassar 255 caracteres')
     .nullable(),
 
   responsible_name: yup
     .string()
-    .max(255)
+    .transform(v => v?.trim())
+    .max(255, 'Nome do responsável não deve ultrapassar 255 caracteres')
     .required('Nome do responsável obrigatório'),
 
   cnpj: yup
     .string()
     .required('CNPJ obrigatório')
-    .transform((value) => value?.replace(/\D/g, '')) // remove máscara
+    .transform((value) => {
+      if (!value) return '';
+      // Remove máscara e não-dígitos
+      return String(value).replace(/\D/g, '');
+    })
     .test('is-valid-cnpj', 'CNPJ inválido', (value) => {
-      if (!value) return false;
+      if (!value || value.length === 0) return false;
       return cnpj.isValid(value);
     }),
 
   state_registration: yup
     .string()
-    .max(15)
+    .transform(v => v?.trim())
+    .max(15, 'Inscrição estadual não deve ultrapassar 15 caracteres')
     .nullable(),
 
   phone: yup
     .string()
-    .max(20)
+    .transform(v => v?.trim())
+    .max(20, 'Telefone não deve ultrapassar 20 caracteres')
+    .test(
+      'is-valid-phone',
+      'Telefone deve conter pelo menos 10 dígitos',
+      (value) => {
+        if (!value) return false;
+        const digits = value.replace(/\D/g, '');
+        return digits.length >= 10;
+      }
+    )
     .required('Telefone obrigatório'),
 
   email: yup
     .string()
     .transform(v => v?.toLowerCase().trim())
     .email('E-mail inválido')
-    .max(255)
+    .max(255, 'E-mail não deve ultrapassar 255 caracteres')
     .required('E-mail obrigatório'),
 
   benefit_type: yup
     .string()
-    .oneOf(['food', 'meal', 'both'])
+    .oneOf(
+      ['food', 'meal', 'both'],
+      'Tipo de benefício deve ser: food, meal ou both'
+    )
     .required('Tipo de benefício obrigatório'),
 
   notes: yup
     .string()
+    .transform(v => v?.trim())
     .nullable(),
 
-  // ─── MACHINE ─────────────────────────────────────────────
-  machine_id: yup
+  // ─── MÁQUINA ─────────────────────────────────────────────
+
+  machine_name: yup
     .string()
-    .uuid('Machine_id deve ser um UUID válido')
+    .transform(v => v?.trim())
+    .max(255, 'Nome da máquina não deve ultrapassar 255 caracteres')
     .nullable(),
 
   machine_affiliation_code: yup
     .string()
-    .max(100)
+    .transform(v => v?.trim())
+    .max(100, 'Código de filiação não deve ultrapassar 100 caracteres')
     .nullable(),
 
   // ─── ENDEREÇO ────────────────────────────────────────────
+
   address_street: yup
     .string()
-    .max(255)
+    .transform(v => v?.trim())
+    .max(255, 'Rua não deve ultrapassar 255 caracteres')
     .required('Rua obrigatória'),
 
   address_number: yup
     .string()
-    .max(10)
+    .transform(v => v?.trim())
+    .max(10, 'Número não deve ultrapassar 10 caracteres')
     .required('Número obrigatório'),
 
   address_complement: yup
     .string()
-    .max(100)
+    .transform(v => v?.trim())
+    .max(100, 'Complemento não deve ultrapassar 100 caracteres')
     .nullable(),
 
   address_neighborhood: yup
     .string()
-    .max(100)
+    .transform(v => v?.trim())
+    .max(100, 'Bairro não deve ultrapassar 100 caracteres')
     .nullable(),
 
   address_city: yup
     .string()
-    .max(100)
+    .transform(v => v?.trim())
+    .max(100, 'Cidade não deve ultrapassar 100 caracteres')
     .required('Cidade obrigatória'),
 
+  // ✅ MELHORIA B: Validação robusta de UF com lista de estados
   address_state: yup
     .string()
-    .length(2, 'UF deve ter 2 caracteres')
-    .required('UF obrigatória'),
+    .transform(v => v?.trim().toUpperCase())
+    .required('UF obrigatória')
+    .test(
+      'is-valid-state',
+      'UF inválida. Estados válidos: AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG, PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO',
+      (value) => {
+        if (!value) return false;
+        return isValidBrazilianState(value);
+      }
+    ),
 
+  // ✅ CORREÇÃO 1: Transform seguro de CEP com null/undefined
   address_zip: yup
     .string()
-    .transform(v => v?.replace(/\D/g, ''))
-    .max(9)
-    .required('CEP obrigatório'),
+    .required('CEP obrigatório')
+    .transform((value) => {
+      // ✅ Garantir que null/undefined vire string vazia, não "null"/"undefined"
+      if (!value) return '';
+      
+      // ✅ Garantir que é string antes de fazer replace
+      const stringValue = typeof value === 'string' ? value : String(value);
+      
+      // ✅ Remove apenas não-dígitos
+      return stringValue.replace(/\D/g, '');
+    })
+    .test(
+      'is-valid-zip',
+      'CEP deve ter exatamente 8 dígitos',
+      (value) => {
+        if (!value) return false;
+        // Depois do transform, deve ter 8 dígitos
+        return value.length === 8 && /^\d{8}$/.test(value);
+      }
+    ),
 
   // ─── BANCO ───────────────────────────────────────────────
+
   bank_name: yup
     .string()
-    .max(100)
+    .transform(v => v?.trim())
+    .max(100, 'Nome do banco não deve ultrapassar 100 caracteres')
     .required('Nome do banco obrigatório'),
 
   agency: yup
     .string()
-    .max(10)
+    .transform(v => v?.trim())
+    .max(10, 'Agência não deve ultrapassar 10 caracteres')
+    .test(
+      'is-valid-agency',
+      'Agência deve conter apenas números',
+      (value) => {
+        if (!value) return false;
+        return /^\d+$/.test(value);
+      }
+    )
     .required('Agência obrigatória'),
 
   agency_digit: yup
     .string()
-    .max(2)
+    .transform(v => v?.trim())
+    .max(2, 'Dígito da agência não deve ultrapassar 2 caracteres')
     .nullable(),
 
   account: yup
     .string()
-    .max(20)
+    .transform(v => v?.trim())
+    .max(20, 'Conta não deve ultrapassar 20 caracteres')
+    .test(
+      'is-valid-account',
+      'Conta deve conter apenas números',
+      (value) => {
+        if (!value) return false;
+        return /^\d+$/.test(value);
+      }
+    )
     .required('Conta obrigatória'),
 
   account_digit: yup
     .string()
-    .max(2)
+    .transform(v => v?.trim())
+    .max(2, 'Dígito da conta não deve ultrapassar 2 caracteres')
     .nullable(),
 
   account_type: yup
     .string()
-    .oneOf(['checking', 'savings'])
+    .oneOf(
+      ['checking', 'savings'],
+      'Tipo de conta deve ser: checking ou savings'
+    )
     .required('Tipo de conta obrigatório'),
 
   // ─── VENDA ───────────────────────────────────────────────
+
+  // ✅ CORREÇÃO 2: Usar .uuid() nativo do Yup em vez de regex
   plan_id: yup
     .string()
-    .uuid('Plano inválido')
+    .transform(v => {
+      if (!v) return null;
+      return String(v).trim();
+    })
+    .uuid('Plano inválido - deve ser um UUID válido')  // ✅ Método nativo
     .nullable(),
 
+  // ✅ MELHORIA A: Transform de arrays robusto
   flag_ids: yup
     .array()
-    .of(yup.string().uuid('Flag inválida'))
-    .nullable(),
+    .of(
+      yup
+        .string()
+        .uuid('Flag inválida - deve ser um UUID válido')  // ✅ Método nativo
+    )
+    .nullable()
+    .transform((value) => {
+      // ✅ PASSO 1: Validar que é array ou null
+      if (!value) return null;
+      if (!Array.isArray(value)) return null;
+
+      // ✅ PASSO 2: Limpar e filtrar com segurança
+      const cleaned = value
+        .map(id => {
+          // Se não é string, ignora
+          if (typeof id !== 'string') return null;
+          const trimmed = id.trim();
+          // Retorna apenas se tiver conteúdo
+          return trimmed.length > 0 ? trimmed : null;
+        })
+        .filter(id => id !== null);
+
+      // ✅ PASSO 3: Retornar array não-vazio ou null
+      return cleaned.length > 0 ? cleaned : null;
+    }),
 
   partner_id: yup
     .string()
-    .uuid('Parceiro inválido')
+    .transform(v => {
+      if (!v) return null;
+      return String(v).trim();
+    })
+    .uuid('Parceiro inválido - deve ser um UUID válido')  // ✅ Método nativo
     .nullable(),
-
 })
-.test(
-  'plan-or-flags',
-  'Informe um plano ou ao menos uma bandeira',
-  (value) => {
-    return (
-      value.plan_id ||
-      (Array.isArray(value.flag_ids) && value.flag_ids.length > 0)
-    );
-  }
-);
+
+  // ✅ REGRA DE NEGÓCIO: Cliente deve ter plano OU bandeiras
+  .test(
+    'plan-or-flags',
+    'Informe um plano ou ao menos uma bandeira',
+    function(value) {
+      const hasPlan =
+        !!value.plan_id && String(value.plan_id).trim().length > 0;
+      const hasFlags =
+        Array.isArray(value.flag_ids) && value.flag_ids.length > 0;
+
+      if (!hasPlan && !hasFlags) {
+        return this.createError({
+          path: 'flag_ids',
+          message: 'Informe um plano ou ao menos uma bandeira',
+        });
+      }
+
+      logger.debug(
+        { hasPlan, flagCount: value.flag_ids?.length || 0 },
+        '[onboardingSchema] Validação de plano/flags passou'
+      );
+
+      return true;
+    }
+  );
 
 module.exports = { onboardingSchema };
 --- END FILE ---

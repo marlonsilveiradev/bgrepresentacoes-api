@@ -15,7 +15,7 @@
  */
 
 const { Op } = require('sequelize');
-const logger = require('../../config/logger');
+const logger = require('../config/logger');
 const Flag = require('../../domain/entities/Flag');
 const IFlagRepository = require('../../domain/interfaces/IFlagRepository');
 const { Flag: FlagModel } = require('./models');
@@ -35,7 +35,7 @@ class FlagRepository extends IFlagRepository {
       // Transformar Sequelize model → Flag entity
       return this.modelToEntity(model);
     } catch (error) {
-      console.error('[FlagRepository.findById] Erro:', error.message);
+      logger.error('[FlagRepository.findById] Erro:', error.message);
       throw error;
     }
   }
@@ -88,7 +88,7 @@ class FlagRepository extends IFlagRepository {
 
       return this.modelToEntity(model);
     } catch (error) {
-      console.error('[FlagRepository.findByName] Erro:', error.message);
+      logger.error('[FlagRepository.findByName] Erro:', error.message);
       throw error;
     }
   }
@@ -133,7 +133,7 @@ class FlagRepository extends IFlagRepository {
         totalPages,
       };
     } catch (error) {
-      console.error('[FlagRepository.list] Erro:', error.message);
+      logger.error('[FlagRepository.list] Erro:', error.message);
       throw error;
     }
   }
@@ -154,7 +154,7 @@ class FlagRepository extends IFlagRepository {
 
       return this.modelToEntity(model);
     } catch (error) {
-      console.error('[FlagRepository.create] Erro:', error.message);
+      logger.error('[FlagRepository.create] Erro:', error.message);
       throw error;
     }
   }
@@ -181,7 +181,7 @@ class FlagRepository extends IFlagRepository {
 
       return this.modelToEntity(model);
     } catch (error) {
-      console.error('[FlagRepository.update] Erro:', error.message);
+      logger.error('[FlagRepository.update] Erro:', error.message);
       throw error;
     }
   }
@@ -199,7 +199,7 @@ class FlagRepository extends IFlagRepository {
 
       await model.destroy();
     } catch (error) {
-      console.error('[FlagRepository.delete] Erro:', error.message);
+      logger.error('[FlagRepository.delete] Erro:', error.message);
       throw error;
     }
   }

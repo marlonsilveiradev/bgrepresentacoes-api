@@ -3,6 +3,7 @@
  */
 
 const AppError = require('../../../shared/utils/AppError');
+const logger = require('../../../infrastructure/config/logger');
 const CacheService = require('../../../infrastructure/services/CacheService');
 
 class ReactivateFlagUseCase {
@@ -26,7 +27,7 @@ class ReactivateFlagUseCase {
     // ✅ Limpar cache
     await this._invalidateCache(id);
 
-    console.log('[ReactivateFlagUseCase] Flag reativada:', id);
+    logger.debug('[ReactivateFlagUseCase] Flag reativada:', id);
 
     return {
       message: `Bandeira "${flag.name}" reativada com sucesso.`,

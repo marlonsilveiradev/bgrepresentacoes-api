@@ -5,7 +5,7 @@ const {
   isValidBrazilianState,
 } = require('./brazilianStates');
 
-const logger = require('../../config/logger');
+const logger = require('../../../infrastructure/config/logger');
 
 /**
  * ✅ VALIDATOR: Onboarding Schema

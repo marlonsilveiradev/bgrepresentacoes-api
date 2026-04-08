@@ -8,7 +8,7 @@ const CreateClientUseCase = require('./CreateClientUseCase');
 const CreateBankAccountUseCase = require('./CreateBankAccountUseCase');
 const CreateSaleUseCase = require('./CreateSaleUseCase');
 const AssociateFlagsUseCase = require('./AssociateFlagsUseCase');
-const ProcessDocumentsUseCase = require('./ProcessDocumentsUseCase');
+const ProccessClientDocumentUseCase = require('./ProcessClientDocumentsUseCase')
 
 module.exports = {
   OnboardClientUseCase,
@@ -17,5 +17,5 @@ module.exports = {
   CreateBankAccountUseCase,
   CreateSaleUseCase,
   AssociateFlagsUseCase,
-  ProcessDocumentsUseCase,
+  ProccessClientDocumentUseCase,
 };

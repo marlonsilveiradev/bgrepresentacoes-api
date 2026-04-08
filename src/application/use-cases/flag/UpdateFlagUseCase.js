@@ -3,6 +3,7 @@
  */
 
 const AppError = require('../../../shared/utils/AppError');
+const logger = require('../../../infrastructure/config/logger');
 const CacheService = require('../../../infrastructure/services/CacheService');
 
 class UpdateFlagUseCase {
@@ -43,7 +44,7 @@ class UpdateFlagUseCase {
     // ✅ Limpar cache
     await this._invalidateCache(id);
 
-    console.log('[UpdateFlagUseCase] Flag atualizada:', id);
+    logger.debug('[UpdateFlagUseCase] Flag atualizada:', id);
 
     return updated;
   }

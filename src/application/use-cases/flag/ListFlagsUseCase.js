@@ -14,6 +14,7 @@
  */
 
 const CacheService = require('../../../infrastructure/services/CacheService');
+const logger = require('../../../infrastructure/config/logger');
 
 class ListFlagsUseCase {
   constructor(flagRepository) {
@@ -27,12 +28,12 @@ class ListFlagsUseCase {
     // ✅ TENTAR BUSCAR DO CACHE
     const cached = await CacheService.get(cacheKey);
     if (cached) {
-      console.log('[ListFlagsUseCase] Cache hit:', cacheKey);
+      logger.debug('[ListFlagsUseCase] Cache hit:', cacheKey);
       return cached;
     }
 
     // ❌ CACHE MISS - Buscar do repositório
-    console.log('[ListFlagsUseCase] Cache miss, querying database');
+    logger.debug('[ListFlagsUseCase] Cache miss, querying database');
 
     const result = await this.flagRepository.list(
       listFlagsQueryDTO.toRepositoryFilters()

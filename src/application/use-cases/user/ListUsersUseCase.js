@@ -3,6 +3,7 @@
  */
 
 const CacheService = require('../../../infrastructure/services/CacheService');
+const logger = require('../../../infrastructure/config/logger');
 
 class ListUsersUseCase {
   constructor(userRepository) {
@@ -14,7 +15,7 @@ class ListUsersUseCase {
 
     const cached = await CacheService.get(cacheKey);
     if (cached) {
-      console.log('[ListUsersUseCase] Cache hit:', cacheKey);
+      logger.debug('[ListUsersUseCase] Cache hit:', cacheKey);
       return cached;
     }
 
