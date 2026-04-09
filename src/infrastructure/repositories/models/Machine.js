@@ -32,9 +32,5 @@ module.exports = (sequelize) => {
     underscored: true,
   });
 
-  Machine.associate = (db) => {
-    Machine.hasMany(db.Client, { foreignKey: 'machine_id', as: 'clients' });
-  };
-
   return Machine;
 };

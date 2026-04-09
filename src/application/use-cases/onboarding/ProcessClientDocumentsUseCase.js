@@ -223,6 +223,15 @@ class ProcessClientDocumentsUseCase {
       card_machine_proof: 'card_machine_proof',
     };
   }
+  async findByType(clientId, documentType, options = {}) {
+  return await this.model.findOne({
+    where: {
+      client_id: clientId,
+      document_type: documentType,
+    },
+    transaction: options.transaction || null,
+  });
+}
 
   /**
    * Limpar uploads falhados

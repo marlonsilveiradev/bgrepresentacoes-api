@@ -19,7 +19,7 @@ const {
 class UserContainer {
   constructor() {
     // Repository (singleton)
-    this.userRepository = new UserRepository();
+    this.userRepository = UserRepository;
 
     // Use Cases (singleton)
     this.listUsersUseCase = new ListUsersUseCase(this.userRepository);

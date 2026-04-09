@@ -7,6 +7,7 @@ module.exports = (sequelize) => {
       id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
+        allowNull: false,
         primaryKey: true,
       },
       client_id: {
@@ -59,7 +60,7 @@ module.exports = (sequelize) => {
   );
 
   ClientBankAccount.associate = (db) => {
-    ClientBankAccount.belongsTo(db.Client, { foreignKey: 'client_id', as: 'client' });
+    ClientBankAccount.belongsTo(db.Client, { foreignKey: 'client_id', targetKey: 'id', as: 'client' });
   };
 
   return ClientBankAccount;

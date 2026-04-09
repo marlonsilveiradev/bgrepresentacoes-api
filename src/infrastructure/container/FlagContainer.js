@@ -18,7 +18,7 @@ const {
 class FlagContainer {
   constructor() {
     // Repository
-    this.flagRepository = new FlagRepository();
+    this.flagRepository = FlagRepository;
 
     // Use Cases
     this.listFlagsUseCase = new ListFlagsUseCase(this.flagRepository);
