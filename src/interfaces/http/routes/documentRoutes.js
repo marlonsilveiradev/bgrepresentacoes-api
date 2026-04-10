@@ -1,40 +1,37 @@
 const { Router } = require('express');
-const DocumentController = require('../../http/controllers/DocumentController');
-const { authMiddleware, authorize } = require('../../http/middlewares/authMiddleware');
+const DocumentController = require('../controllers/DocumentController');
+const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
+const { defaultLimiter } = require('../middlewares/rateLimiter');
+const yup = require('yup');
+const { validate } = require('../middlewares/validationMiddleware');
 
 const router = Router();
-
-router.use(authMiddleware);
 
 /**
  * @swagger
  * tags:
  *   name: Documents
- *   description: Download seguro de documentos via proxy
+ *   description: Download de documentos do cliente
  */
+
+// Schema para validação do ID do documento
+const documentIdParamSchema = yup.object({
+  id: yup
+    .string()
+    .required('ID do documento é obrigatório.')
+    .uuid('ID deve ser um UUID válido.'),
+});
 
 /**
  * @swagger
  * /documents/{id}/download:
  *   get:
- *     summary: Download de documento via proxy (sem expor URL do Cloudinary)
+ *     summary: Faz download de um documento do cliente
  *     description: |
- *       Retorna o arquivo binário diretamente como resposta HTTP.
- *       A URL do Cloudinary nunca é exposta ao frontend.
- *
- *       **No frontend, use assim:**
- *       ```js
- *       const res  = await fetch('/api/v1/documents/:id/download', {
- *         headers: { Authorization: `Bearer ${token}` }
- *       });
- *       const blob = await res.blob();
- *       const url  = URL.createObjectURL(blob);
- *       window.open(url); // ou <img src={url} />
- *       ```
- *
- *       **Permissões:**
- *       - `admin` → qualquer documento
- *       - `user`  → apenas documentos de clientes que cadastrou
+ *       Download de documento com controle de acesso:
+ *       - Admin: acessa qualquer documento
+ *       - User: acessa documentos de clientes que criou
+ *       - Partner: acessa documentos de clientes vinculados
  *     tags: [Documents]
  *     security:
  *       - bearerAuth: []
@@ -43,24 +40,23 @@ router.use(authMiddleware);
  *         name: id
  *         required: true
  *         schema: { type: string, format: uuid }
- *         description: UUID do ClientDocument
  *     responses:
  *       200:
- *         description: Binário do arquivo (image/jpeg, image/png ou application/pdf)
- *         content:
- *           application/octet-stream:
- *             schema:
- *               type: string
- *               format: binary
+ *         description: Arquivo do documento
+ *       401:
+ *         description: Não autenticado
  *       403:
- *         description: Sem permissão para acessar este documento
+ *         description: Acesso negado
  *       404:
  *         description: Documento não encontrado
  */
 router.get(
   '/:id/download',
-  authorize('admin', 'user'),
-  DocumentController.download
+  authMiddleware,
+  defaultLimiter,
+  authorize('admin', 'user', 'partner'),
+  validate(documentIdParamSchema, 'params'),
+  DocumentController.downloadDocument
 );
 
 module.exports = router;

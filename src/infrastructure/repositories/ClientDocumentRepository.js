@@ -63,6 +63,35 @@ class ClientDocumentRepository {
       transaction: options.transaction || null,
     });
   }
+
+  async findByIdWithClient(documentId) {
+    try {
+      const doc = await this.model.findByPk(documentId, {
+        include: [
+          {
+            model: this.model.sequelize.models.Client,
+            as: 'client',
+            attributes: ['id', 'created_by', 'partner_id', 'corporate_name'],
+          },
+        ],
+      });
+
+      if (!doc) {
+        logger.debug({ documentId }, '[ClientDocumentRepository] Documento não encontrado');
+        return null;
+      }
+
+      return doc;
+
+    } catch (error) {
+      logger.error(
+        { error: error.message, documentId },
+        '[ClientDocumentRepository.findByIdWithClient] Erro'
+      );
+
+      throw new AppError('Erro ao buscar documento', 500, 'DOCUMENT_FETCH_ERROR');
+    }
+  }
 }
 
 module.exports = ClientDocumentRepository;

@@ -199,6 +199,7 @@ router.use('/sales', saleRoutes);
  *     description: Processo de cadastro de clientes
  */
 router.use('/onboarding', onboardingRoutes);
+app.use('/api/v1/documents', documentRoutes);
 
 /**
  * @swagger
