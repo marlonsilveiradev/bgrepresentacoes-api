@@ -1,21 +1,27 @@
-const ClientFlagService = require('../../../infrastructure/services/ClientFlagService');
-const catchAsync = require('../../../shared/utils/catchAsync');
+const UpdateClientFlagStatusUseCase = require('../../application/use-cases/client/UpdateClientFlagStatusUseCase');
+const logger = require('../../../infrastructure/config/logger');
 
-const updateStatus = catchAsync(async (req, res, next) => {
-  const { id } = req.params; // ID do vínculo (ClientFlag)
-  const { status, notes } = req.body;
-  const requester = req.user;
+class ClientFlagController {
+  static async updateStatus(req, res, next) {
+    try {
+      const { id } = req.params;
+      const useCase = new UpdateClientFlagStatusUseCase(
+        req.app.locals.clientFlagRepository,
+        req.app.locals.sequelize
+      );
 
-  const updatedFlag = await ClientFlagService.updateFlagStatus(id, requester, { 
-    status, 
-    notes 
-  });
+      const updatedFlag = await useCase.execute(id, req.user, req.body);
 
-  return res.status(200).json({
-    status: 'success',
-    message: `Status da bandeira atualizado para ${status}.`,
-    data: updatedFlag
-  });
-});
+      logger.info(
+        { flagId: id, userId: req.user.id },
+        '[ClientFlagController.updateStatus] Status atualizado'
+      );
 
-module.exports = { updateStatus };
+      return res.json(updatedFlag);
+    } catch (error) {
+      next(error);
+    }
+  }
+}
+
+module.exports = ClientFlagController;

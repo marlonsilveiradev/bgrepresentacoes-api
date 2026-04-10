@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const yup = require('yup');
+
 const ClientController = require('../../http/controllers/ClientController');
 const { authMiddleware, authorize } = require('../../http/middlewares/authMiddleware');
 const { defaultLimiter } = require('../../http/middlewares/rateLimiter');
@@ -10,7 +11,7 @@ const {
   updateClientSchema,
   clientIdParamSchema,
   listClientsQuerySchema,
-} = require('../validators/clientValidators');
+} = require('../../http/validators/clientValidators');
 
 const router = Router();
 
@@ -21,13 +22,19 @@ const router = Router();
  *   description: Gerenciamento de clientes e consulta de protocolo
  */
 
-// Rota Pública — sem token
+// ✅ Rota Pública — sem token
 const protocolParamSchema = yup.object({
-  protocol: yup.string().required(),
+  protocol: yup.string().required('Protocolo é obrigatório'),
 });
-router.get('/public/track/:protocol', defaultLimiter, validate(protocolParamSchema, 'params'), ClientController.trackByProtocol);
 
-// Autenticação obrigatória a partir daqui
+router.get(
+  '/public/track/:protocol',
+  defaultLimiter,
+  validate(protocolParamSchema, 'params'),
+  ClientController.trackByProtocol
+);
+
+// ✅ Autenticação obrigatória a partir daqui
 router.use(authMiddleware);
 
 /**
@@ -92,15 +99,15 @@ router.get(
  *   patch:
  *     summary: Atualiza dados de um cliente existente
  *     description: |
- *       Aceita `application/json` (apenas dados textuais) ou `multipart/form-data`
+ *       Aceita application/json (apenas dados textuais) ou multipart/form-data
  *       (dados textuais + documentos).
- *
- *       Quando enviar arquivos, use `multipart/form-data`:
- *       - Campo `data`: JSON string com os campos a atualizar
- *       - Campo `contrato`: arquivo do contrato (substitui o existente)
- *       - Campo `documentos`: até 3 arquivos complementares
- *
- *       Quando enviar apenas dados, use `application/json` normalmente.
+ *       
+ *       Quando enviar arquivos, use multipart/form-data:
+ *       - Campo data: JSON string com os campos a atualizar
+ *       - Campo contrato: arquivo do contrato (substitui o existente)
+ *       - Campo documentos: até 3 arquivos complementares
+ *       
+ *       Quando enviar apenas dados, use application/json normalmente.
  *     tags: [Clients]
  *     security:
  *       - bearerAuth: []

@@ -219,6 +219,15 @@ class FlagRepository extends IFlagRepository {
       updated_at: model.updated_at,
     });
   }
+
+  async findActiveByIds(flagIds) {
+  const { Op } = require('sequelize');
+  
+  return await this.model.findAll({
+    where: { id: { [Op.in]: flagIds }, is_active: true },
+    attributes: ['id', 'name', 'price'],
+  });
+}
 }
 
 module.exports = FlagRepository;

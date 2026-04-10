@@ -21,6 +21,22 @@ class ClientRepository {
   async findById(id) {
     return await this.model.findByPk(id);
   }
+
+  async findByProtocol(protocol) {
+  return await this.model.findOne({ where: { protocol } });
+}
+
+async findAll(options = {}) {
+  const { where = {}, limit = 20, offset = 0, order = [['created_at', 'DESC']] } = options;
+
+  return await this.model.findAndCountAll({
+    where,
+    limit,
+    offset,
+    order,
+    raw: false,
+  });
+}
 }
 
 module.exports = ClientRepository;

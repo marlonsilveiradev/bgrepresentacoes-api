@@ -1,64 +1,111 @@
-const SaleService = require('../../../infrastructure/services/SaleService');
-const catchAsync = require('../../../shared/utils/catchAsync');
+const CreateSaleUseCase = require('../../application/use-cases/sale/CreateSaleUseCase');
+const GetSaleByIdUseCase = require('../../application/use-cases/sale/GetSaleByIdUseCase');
+const ListSalesUseCase = require('../../application/use-cases/sale/ListSalesUseCase');
+const UpdateSaleStatusUseCase = require('../../application/use-cases/sale/UpdateSaleStatusUseCase');
+const CancelSaleUseCase = require('../../application/use-cases/sale/CancelSaleUseCase');
+const logger = require('../../infrastructure/config/logger');
 
-/**
- * @module SaleController
- */
+class SaleController {
+  static async list(req, res, next) {
+    try {
+      const useCase = new ListSalesUseCase(req.app.locals.saleRepository);
+      const result = await useCase.execute(req.query, req.user);
 
-const list = catchAsync(async (req, res, next) => {
-  const { page, limit, status, client_id, sold_by, plan_id } = req.query;
+      return res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 
-  const result = await SaleService.listSales(req.user, {
-    page:      page  ? Number.parseInt(page, 10)  : 1,
-    limit:     limit ? Number.parseInt(limit, 10) : 20,
-    status,
-    client_id,
-    sold_by,
-    plan_id,
-  });
+  static async getById(req, res, next) {
+    try {
+      const { id } = req.params;
+      const useCase = new GetSaleByIdUseCase(req.app.locals.saleRepository);
+      const sale = await useCase.execute(id, req.user);
 
-  return res.status(200).json({
-    status: 'success',
-    data: result.rows,
-    pagination: {
-      total:       result.count,
-      totalPages:  result.totalPages,
-      currentPage: result.currentPage,
-      perPage:     Number.parseInt(limit, 10) || 20,
-    },
-  });
-});
+      return res.json(sale);
+    } catch (error) {
+      next(error);
+    }
+  }
 
-const getById = catchAsync(async (req, res, next) => {
-  const sale = await SaleService.getSaleById(req.params.id, req.user);
-  return res.status(200).json({ status: 'success', data: sale });
-});
+  static async create(req, res, next) {
+    try {
+      const useCase = new CreateSaleUseCase(
+        req.app.locals.saleRepository,
+        req.app.locals.saleFlagRepository,
+        req.app.locals.clientRepository,
+        req.app.locals.planRepository,
+        req.app.locals.flagRepository,
+        req.app.locals.clientFlagRepository,
+        req.app.locals.sequelize
+      );
 
-const create = catchAsync(async (req, res, next) => {
-  const sale = await SaleService.createSale(req.user, req.body);
-  return res.status(201).json({
-    status: 'success',
-    message: 'Venda registrada com sucesso.',
-    data:    sale,
-  });
-});
+      const sale = await useCase.execute(req.user, req.body);
 
-const updateStatus = catchAsync(async (req, res, next) => {
-  const sale = await SaleService.updateSaleStatus(req.params.id, req.user, req.body);
-  return res.status(200).json({
-    status: 'success',
-    message: 'Status da venda atualizado.',
-    data:    sale,
-  });
-});
+      logger.info(
+        { saleId: sale.id, userId: req.user.id },
+        '[SaleController.create] Venda criada com sucesso'
+      );
 
-const cancel = catchAsync(async (req, res, next) => {
-  const sale = await SaleService.cancelSale(req.params.id, req.user, req.body);
-  return res.status(200).json({
-    status: 'success',
-    message: 'Venda cancelada com sucesso.',
-    data:    sale,
-  });
-});
+      return res.status(201).json({
+        message: 'Venda registrada com sucesso.',
+        data: sale,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 
-module.exports = { list, getById, create, updateStatus, cancel };
+  static async updateStatus(req, res, next) {
+    try {
+      const { id } = req.params;
+      const useCase = new UpdateSaleStatusUseCase(
+        req.app.locals.saleRepository,
+        req.app.locals.clientFlagRepository,
+        req.app.locals.sequelize
+      );
+
+      const sale = await useCase.execute(id, req.user, req.body);
+
+      logger.info(
+        { saleId: id, userId: req.user.id },
+        '[SaleController.updateStatus] Status atualizado'
+      );
+
+      return res.json({
+        message: 'Status da venda atualizado.',
+        data: sale,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async cancel(req, res, next) {
+    try {
+      const { id } = req.params;
+      const useCase = new CancelSaleUseCase(
+        req.app.locals.saleRepository,
+        req.app.locals.clientFlagRepository,
+        req.app.locals.sequelize
+      );
+
+      const sale = await useCase.execute(id, req.user, req.body);
+
+      logger.info(
+        { saleId: id, userId: req.user.id },
+        '[SaleController.cancel] Venda cancelada'
+      );
+
+      return res.json({
+        message: 'Venda cancelada com sucesso.',
+        data: sale,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+}
+
+module.exports = SaleController;

@@ -1,6 +1,7 @@
 const yup = require('yup');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
 const CNPJ_REGEX = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/;
 const ZIP_REGEX = /^\d{5}-?\d{3}$/;
 const UF_LIST = [
@@ -10,8 +11,8 @@ const UF_LIST = [
 ];
 
 // ─── Criar cliente ────────────────────────────────────────────────────────────
+
 const createClientSchema = yup.object({
-  // Dados da empresa
   corporate_name: yup
     .string()
     .required('Razão social é obrigatória.')
@@ -27,11 +28,25 @@ const createClientSchema = yup.object({
 
   cnpj: yup
     .string()
-    .required('CNPJ é obrigatório.'),
+    .required('CNPJ é obrigatório.')
+    .matches(CNPJ_REGEX, 'CNPJ deve estar no formato 00.000.000/0000-00.'),
+
+  responsible_name: yup
+    .string()
+    .required('Nome do responsável é obrigatório.')
+    .max(255, 'Nome do responsável deve ter no máximo 255 caracteres.')
+    .trim(),
+
+  state_registration: yup
+    .string()
+    .max(15)
+    .trim()
+    .nullable()
+    .optional(),
 
   phone: yup
     .string()
-    .max(11, 'Telefone deve ter no máximo 11 caracteres.')
+    .max(20)
     .trim()
     .nullable()
     .optional(),
@@ -44,19 +59,172 @@ const createClientSchema = yup.object({
     .nullable()
     .optional(),
 
-  // Endereço
+  address_street: yup
+    .string()
+    .required('Rua é obrigatória.')
+    .max(255)
+    .trim(),
+
+  address_number: yup
+    .string()
+    .required('Número é obrigatório.')
+    .max(10)
+    .trim(),
+
+  address_complement: yup
+    .string()
+    .max(100)
+    .trim()
+    .nullable()
+    .optional(),
+
+  address_neighborhood: yup
+    .string()
+    .max(100)
+    .trim()
+    .nullable()
+    .optional(),
+
+  address_city: yup
+    .string()
+    .required('Cidade é obrigatória.')
+    .max(100)
+    .trim(),
+
+  address_state: yup
+    .string()
+    .required('UF é obrigatória.')
+    .length(2, 'UF deve ter exatamente 2 letras.')
+    .uppercase()
+    .oneOf(UF_LIST, 'UF inválida.'),
+
+  address_zip: yup
+    .string()
+    .required('CEP é obrigatório.')
+    .matches(ZIP_REGEX, 'CEP deve estar no formato 00000-000.'),
+
+  benefit_type: yup
+    .string()
+    .required('Tipo de benefício é obrigatório.')
+    .oneOf(['food', 'meal', 'both'], 'Tipo inválido. Use: food, meal ou both.'),
+
+  notes: yup
+    .string()
+    .max(2000)
+    .trim()
+    .nullable()
+    .optional(),
+
+  partner_id: yup
+    .string()
+    .uuid('partner_id deve ser um UUID válido.')
+    .nullable()
+    .optional(),
+
+  flag_ids: yup
+    .array()
+    .of(yup.string().uuid('Cada flag_id deve ser um UUID válido.'))
+    .optional()
+    .default([]),
+
+  plan_id: yup
+    .string()
+    .uuid('plan_id deve ser um UUID válido.')
+    .nullable()
+    .optional(),
+
+  bank_name: yup
+    .string()
+    .max(100)
+    .trim()
+    .required('Nome do banco é obrigatório.'),
+
+  agency: yup
+    .string()
+    .max(10)
+    .trim()
+    .required('Agência é obrigatória.'),
+
+  agency_digit: yup
+    .string()
+    .max(2)
+    .trim()
+    .nullable()
+    .optional(),
+
+  account: yup
+    .string()
+    .max(20)
+    .trim()
+    .required('Conta é obrigatória.'),
+
+  account_digit: yup
+    .string()
+    .max(2)
+    .trim()
+    .nullable()
+    .optional(),
+
+  account_type: yup
+    .string()
+    .oneOf(['checking', 'savings'], 'Tipo de conta inválido.')
+    .required('Tipo de conta é obrigatório.'),
+});
+
+// ─── Atualizar cliente ────────────────────────────────────────────────────────
+
+const updateClientSchema = yup.object({
+  corporate_name: yup
+    .string()
+    .max(200)
+    .trim()
+    .optional(),
+
+  trade_name: yup
+    .string()
+    .max(200)
+    .trim()
+    .nullable()
+    .optional(),
+
+  responsible_name: yup
+    .string()
+    .max(255)
+    .trim()
+    .optional(),
+
+  state_registration: yup
+    .string()
+    .max(15)
+    .trim()
+    .nullable()
+    .optional(),
+
+  phone: yup
+    .string()
+    .max(20)
+    .trim()
+    .nullable()
+    .optional(),
+
+  email: yup
+    .string()
+    .email('Informe um e-mail válido.')
+    .lowercase()
+    .trim()
+    .nullable()
+    .optional(),
+
   address_street: yup
     .string()
     .max(255)
     .trim()
-    .nullable()
     .optional(),
 
   address_number: yup
     .string()
     .max(10)
     .trim()
-    .nullable()
     .optional(),
 
   address_complement: yup
@@ -77,98 +245,7 @@ const createClientSchema = yup.object({
     .string()
     .max(100)
     .trim()
-    .nullable()
     .optional(),
-
-  address_state: yup
-    .string()
-    .length(2, 'Estado deve ter exatamente 2 letras (UF).')
-    .uppercase()
-    .oneOf(UF_LIST, 'UF inválida.')
-    .nullable()
-    .optional(),
-
-  address_zip: yup
-    .string()
-    .nullable()
-    .optional(),
-
-  // Benefício
-  benefit_type: yup
-    .string()
-    .required('Tipo de benefício é obrigatório.')
-    .oneOf(['food', 'meal', 'both'], 'Tipo inválido. Use: food, meal ou both.'),
-
-  notes: yup
-    .string()
-    .max(2000)
-    .trim()
-    .nullable()
-    .optional(),
-
-  // Vínculo com parceiro (admin define; user ignora)
-  partner_id: yup
-    .string()
-    .uuid('partner_id deve ser um UUID válido.')
-    .nullable()
-    .optional(),
-
-  // Bandeiras iniciais (opcional — podem ser adicionadas depois)
-  flag_ids: yup
-    .array()
-    .of(yup.string().uuid('Cada flag_id deve ser um UUID válido.'))
-    .optional()
-    .default([]),
-});
-
-// ─── Atualizar cliente ────────────────────────────────────────────────────────
-const updateClientSchema = yup.object({
-  corporate_name: yup
-    .string()
-    .max(200)
-    .trim()
-    .optional(),
-
-  trade_name: yup
-    .string()
-    .max(200)
-    .trim()
-    .nullable()
-    .optional(),
-
-  cnpj: yup
-    .string()
-    .matches(CNPJ_REGEX, 'CNPJ deve estar no formato 00.000.000/0000-00.')
-    .optional(),
-
-  state_registration: yup.string().max(20).trim().nullable().optional(),
-  
-  responsible_name: yup
-    .string()
-    .max(200)
-    .trim()
-    .required('O nome do responsável é obrigatório.'),
-
-  phone: yup
-    .string()
-    .max(20)
-    .trim()
-    .nullable()
-    .optional(),
-
-  email: yup
-    .string()
-    .email('Informe um e-mail válido.')
-    .lowercase()
-    .trim()
-    .nullable()
-    .optional(),
-
-  address_street: yup.string().max(255).trim().nullable().optional(),
-  address_number: yup.string().max(10).trim().nullable().optional(),
-  address_complement: yup.string().max(100).trim().nullable().optional(),
-  address_neighborhood: yup.string().max(100).trim().nullable().optional(),
-  address_city: yup.string().max(100).trim().nullable().optional(),
 
   address_state: yup
     .string()
@@ -203,18 +280,47 @@ const updateClientSchema = yup.object({
     .optional(),
 
   bankAccount: yup.object({
-    bank_code: yup.string().max(10).trim().nullable().optional(),
-    bank_name: yup.string().max(100).trim().nullable().optional(),
-    agency: yup.string().max(20).trim().nullable().optional(),
-    agency_digit: yup.string().max(5).trim().nullable().optional(),
-    account: yup.string().max(20).trim().nullable().optional(),
-    account_digit: yup.string().max(5).trim().nullable().optional(),
-    account_type: yup.string().oneOf(['checking', 'savings'], 'Tipo de conta inválido.').optional(),
-  }).nullable().optional(),
+    bank_name: yup
+      .string()
+      .max(100)
+      .trim()
+      .optional(),
 
-});
+    agency: yup
+      .string()
+      .max(10)
+      .trim()
+      .optional(),
+
+    agency_digit: yup
+      .string()
+      .max(2)
+      .trim()
+      .nullable()
+      .optional(),
+
+    account: yup
+      .string()
+      .max(20)
+      .trim()
+      .optional(),
+
+    account_digit: yup
+      .string()
+      .max(2)
+      .trim()
+      .nullable()
+      .optional(),
+
+    account_type: yup
+      .string()
+      .oneOf(['checking', 'savings'], 'Tipo de conta inválido.')
+      .optional(),
+  }).nullable().optional(),
+}).strict().noUnknown(true, 'Campo adicional não permitido: ${unknown}');
 
 // ─── Parâmetro :id ────────────────────────────────────────────────────────────
+
 const clientIdParamSchema = yup.object({
   id: yup
     .string()
@@ -223,6 +329,7 @@ const clientIdParamSchema = yup.object({
 });
 
 // ─── Query params listagem ────────────────────────────────────────────────────
+
 const listClientsQuerySchema = yup.object({
   page: yup.number().integer().min(1).default(1).optional(),
   limit: yup.number().integer().min(1).max(100).default(20).optional(),
@@ -230,7 +337,7 @@ const listClientsQuerySchema = yup.object({
   benefit_type: yup.string().oneOf(['food', 'meal', 'both']).optional(),
   partner_id: yup.string().uuid().optional(),
   search: yup.string().trim().optional(),
-});
+}).strict().noUnknown(true, 'Filtro não permitido: ${unknown}');
 
 module.exports = {
   createClientSchema,

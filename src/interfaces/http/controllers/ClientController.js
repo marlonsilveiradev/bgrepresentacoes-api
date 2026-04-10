@@ -1,66 +1,79 @@
-const ClientService = require('../../../infrastructure/services/ClientService');
-const catchAsync = require('../../../shared/utils/catchAsync');
+const GetClientByIdUseCase = require('../../application/use-cases/client/GetClientByIdUseCase');
+const ListClientsUseCase = require('../../application/use-cases/client/ListClientsUseCase');
+const UpdateClientUseCase = require('../../application/use-cases/client/UpdateClientUseCase');
+const logger = require('../../infrastructure/config/logger');
 
-// GET /api/v1/clients
-const list = catchAsync(async (req, res) => {
-  const { page = 1, limit = 20, overall_status, benefit_type, partner_id, search } = req.query;
-  const result = await ClientService.listClients(req.user, {
-    page,
-    limit,
-    overall_status,
-    benefit_type,
-    partner_id,
-    search,
-  });
+class ClientController {
+  static async getById(req, res, next) {
+    try {
+      const { id } = req.params;
+      const useCase = new GetClientByIdUseCase(req.app.locals.clientRepository);
+      const client = await useCase.execute(id, req.user);
 
-  return res.status(200).json({
-    status: 'success',
-    data: result.rows,
-    pagination: {
-      total: result.count,
-      totalPages: result.totalPages,
-      currentPage: result.currentPage,
-      perPage: Number.parseInt(limit, 10) || 20,
-    },
-  });
-});
+      return res.json(client);
+    } catch (error) {
+      next(error);
+    }
+  }
 
-// GET /api/v1/clients/:id
-const getById = catchAsync(async (req, res) => {
-  const client = await ClientService.getClientById(req.params.id, req.user);
-  return res.status(200).json({
-    status: 'success',
-    data: client,
-  });
-});
+  static async list(req, res, next) {
+    try {
+      const useCase = new ListClientsUseCase(req.app.locals.clientRepository);
+      const result = await useCase.execute(req.query, req.user);
 
-// PATCH /api/v1/clients/:id
-const updateClient = catchAsync(async (req, res) => {
-  const updateData = req.body;
-  const organizedFiles = req.files && Object.keys(req.files).length > 0 ? req.files : null;
+      return res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 
-  const client = await ClientService.updateClient(
-    req.params.id,
-    req.user,
-    updateData,
-    organizedFiles
-  );
+  static async updateClient(req, res, next) {
+    try {
+      const { id } = req.params;
+      const useCase = new UpdateClientUseCase(
+        req.app.locals.clientRepository,
+        req.app.locals.clientBankAccountRepository,
+        req.app.locals.clientDocumentRepository,
+        req.app.locals.processClientDocumentsUseCase,
+        req.app.locals.storageRepository,
+        req.app.locals.sequelize
+      );
 
-  return res.status(200).json({
-    status: 'success',
-    message: 'Cliente atualizado com sucesso.',
-    data: client,
-  });
-});
+      const updatedClient = await useCase.execute(id, req.body, req.user, req.files);
 
-// GET /api/v1/clients/public/track/:protocol
-const trackByProtocol = catchAsync(async (req, res) => {
-  const { protocol } = req.params;
-  const client = await ClientService.getPublicStatusByProtocol(protocol);
-  return res.status(200).json({
-    status: 'success',
-    data: client,
-  });
-});
+      logger.info(
+        { clientId: id, userId: req.user.id },
+        '[ClientController.updateClient] Cliente atualizado'
+      );
 
-module.exports = { list, getById, updateClient, trackByProtocol };
+      return res.json(updatedClient);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async trackByProtocol(req, res, next) {
+    try {
+      const { protocol } = req.params;
+      const client = await req.app.locals.clientRepository.findByProtocol(protocol);
+
+      if (!client) {
+        return res.status(404).json({
+          error: 'Cliente não encontrado',
+          code: 'CLIENT_NOT_FOUND',
+        });
+      }
+
+      return res.json({
+        protocol: client.protocol,
+        corporate_name: client.corporate_name,
+        overall_status: client.overall_status,
+        created_at: client.created_at,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+}
+
+module.exports = ClientController;
