@@ -24,8 +24,8 @@ class LoginUseCase {
     // ✅ PASSO 3: Validar senha
     await this._validatePassword(user, loginDTO.password);
 
-    // ✅ PASSO 4: Verificar se é primeiro login
-    const isFirstLogin = Auth.isFirstLogin(user.last_login_at);
+    // ✅ PASSO 4: Verificar se a troca de senha é obrigatória (Via Regra de Domínio)
+    const mustChange = Auth.isChangePasswordRequired(user);
 
     // ✅ PASSO 5: Gerar tokens
     const tokenPayload = Auth.buildTokenPayload(user);
@@ -36,16 +36,16 @@ class LoginUseCase {
     await this.refreshTokenRepository.revokeAllForUser(user.id);
     await this.refreshTokenRepository.create(user.id, refreshToken);
 
-    // ✅ PASSO 7: Atualizar last_login_at (se não for primeiro login)
-    if (!isFirstLogin) {
+    // ✅ PASSO 7: Atualizar last_login_at (somente se não estiver bloqueado para troca de senha)
+    if (!mustChange) {
       await this.userRepository.updateLastLogin(user.id);
     }
 
     // ✅ PASSO 8: Log
     logger.info(
-      { userId: user.id, role: user.role, firstLogin: isFirstLogin },
-      isFirstLogin
-        ? 'Primeiro login — troca de senha obrigatória.'
+      { userId: user.id, role: user.role, firstLogin: mustChange },
+      mustChange
+        ? 'Primeiro login — troca de senha obrigatória pendente.'
         : 'Login realizado com sucesso.'
     );
 
@@ -59,7 +59,7 @@ class LoginUseCase {
       },
       token,
       refreshToken,
-      mustChangePassword: isFirstLogin,
+      mustChangePassword: mustChange,
     };
   }
 

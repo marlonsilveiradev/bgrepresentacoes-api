@@ -16,38 +16,32 @@
 const AppError = require('../../../shared/utils/AppError');
 
 class UpdateUserDTO {
-  constructor({ email, role, is_active }) {
-    this.email = email?.toLowerCase().trim();
-    this.role = role;
-    this.is_active = is_active;
+  constructor(data) {
+    this.name = data.name?.trim();
+    this.email = data.email?.toLowerCase().trim();
+    this.role = data.role;
+    this.is_active = data.is_active;
+    this.password = data.password;
+    this.cpf = data.cpf;
+
+    // Campos de Endereço
+    this.address_street = data.address_street?.trim();
+    this.address_number = data.address_number?.trim();
+    this.address_complement = data.address_complement?.trim();
+    this.address_neighborhood = data.address_neighborhood?.trim();
+    this.address_city = data.address_city?.trim();
+    this.address_state = data.address_state?.toUpperCase(); // Garante padrão UF (SP, RJ...)
+    this.address_zip = data.address_zip?.trim();
   }
 
   static validate(data) {
-    // ✅ REGRA: Pelo menos um campo deve ser fornecido
-    const hasAnyField = Object.values(data).some(val => val !== undefined && val !== null);
+    // Validação de objeto vazio
+    const hasAnyField = Object.entries(data).some(([key, val]) => 
+      val !== undefined && val !== null && val !== ''
+    );
+    
     if (!hasAnyField) {
       throw new AppError('Informe pelo menos um campo para atualizar', 422);
-    }
-
-    // ✅ REGRA: Se email é fornecido, validar
-    if (data.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(data.email)) {
-        throw new AppError('E-mail inválido', 422);
-      }
-    }
-
-    // ✅ REGRA: Se role é fornecido, validar
-    if (data.role) {
-      const validRoles = ['admin', 'user', 'partner'];
-      if (!validRoles.includes(data.role)) {
-        throw new AppError('Role deve ser "admin", "user" ou "partner"', 422);
-      }
-    }
-
-    // ✅ REGRA: is_active deve ser boolean
-    if (data.is_active !== undefined && typeof data.is_active !== 'boolean') {
-      throw new AppError('is_active deve ser boolean', 422);
     }
 
     return new UpdateUserDTO(data);

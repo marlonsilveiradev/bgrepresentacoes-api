@@ -8,6 +8,7 @@ const { Router } = require('express');
 const { ROLES } = require('../../../shared/constants/roles')
 const UserController = require('../controllers/UserController');
 const { authMiddleware, authorize } = require('../middlewares/authMiddleware');
+const { authLimiter, blacklistMiddleware, defaultLimiter} = require('../middlewares/rateLimiter')
 const { validate } = require('../middlewares/validationMiddleware');
 const {
   createUserSchema,
@@ -19,6 +20,10 @@ const {
 } = require('../validators/userValidators');
 
 const router = Router();
+
+//APLICAR BLACKLIST E LIMITER EM TODAS AS ROTAS DE USUÁRIO
+router.use(blacklistMiddleware);
+router.use(defaultLimiter);
 
 /**
  * @swagger
@@ -107,15 +112,15 @@ router.patch(
 router.patch(
   '/profile/change-password',
   authMiddleware,
+  authLimiter,
   validate(changeOwnPasswordSchema, 'body'),
   UserController.changeOwnPassword
 );
 
-// ─── Autenticação obrigatória em TODAS as rotas deste ponto em diante ────────
-router.use(authMiddleware);
 
 // ─── Rotas administrativas ────────────────────────────────────────────────────
 // A partir daqui, apenas admin tem acesso.
+router.use(authMiddleware);
 router.use(authorize(ROLES.ADMIN));
 
 /**

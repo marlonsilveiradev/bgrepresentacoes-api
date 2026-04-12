@@ -16,13 +16,12 @@ const authMiddleware = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-
-    // 2. Verifica a assinatura e expiração do token usando a util que criamos
     const decoded = verifyToken(token);
+    const isChangingPasswordRoute = req.path.includes('/change-password');
 
     // 3. Busca o usuário no banco para garantir que ele ainda existe e está ativo
     const user = await User.findByPk(decoded.sub, {
-      attributes: ['id', 'name', 'email', 'role', 'is_active'],
+      attributes: ['id', 'name', 'email', 'role', 'is_active', 'must_change_password'],
     });
 
     if (!user) {
@@ -33,10 +32,17 @@ const authMiddleware = async (req, res, next) => {
       return res.status(403).json({ error: 'Conta desativada. Acesso negado.' });
     }
 
+    if (user.must_change_password && !isChangingPasswordRoute) {
+      logger.warn({ userId: user.id }, 'Acesso bloqueado: troca de senha obrigatória pendente.');
+      return res.status(403).json({
+        error: 'PASSWORD_CHANGE_REQUIRED',
+        message: 'Alteração de senha obrigatória.'
+      });
+    }
+
     // 4. Injeta o objeto user dentro da requisição (req.user)
     // Isso permite que o Controller saiba QUEM está logado (ex: req.user.id)
     req.user = user;
-
     logger.debug({ userId: user.id, route: req.originalUrl }, 'Requisição autenticada com sucesso.');
 
     return next();

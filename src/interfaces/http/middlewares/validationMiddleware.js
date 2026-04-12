@@ -33,10 +33,8 @@ const validate = (schema, source = 'body') => {
       const data = normalize(req[source]);
       
       // abortEarly: false → retorna TODOS os erros, não só o primeiro
-      // stripUnknown: true → remove campos não declarados no schema
       const validated = await schema.validate(req[source], {
         abortEarly: false,
-        stripUnknown: true,
       });
 
       // Substitui req[source] pelos dados limpos e tipados pelo Yup

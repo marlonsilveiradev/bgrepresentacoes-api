@@ -27,35 +27,31 @@ class ChangePasswordUseCase {
     // ✅ PASSO 3: Validar força da nova senha
     Auth.validatePasswordStrength(changePasswordDTO.newPassword);
 
-    // ✅ PASSO 4: Verificar se é primeira vez alterando senha
-    const isFirstLogin = Auth.isFirstLogin(user.last_login_at);
+    // ✅ PASSO 4: Verificar se ele estava sob a regra de troca obrigatória
+    const wasRequired = user.must_change_password;
 
-    // ✅ PASSO 5: Atualizar senha (repository faz hash via hook)
-    await this.userRepository.updatePassword(
-      userId,
-      changePasswordDTO.newPassword
-    );
+    // ✅ PASSO 5: Atualizar senha
+    // (Como adicionamos o hook 'beforeUpdate' na Model, a senha será hasheada)
+    await this.userRepository.update({
+      id: userId,
+      password: changePasswordDTO.newPassword,
+      must_change_password: false, // Libera o acesso do usuário
+      last_login_at: new Date()    // Define o primeiro login se for o caso
+    });
 
-    // ✅ PASSO 6: Se for primeiro login, atualizar last_login_at
-    if (isFirstLogin) {
-      await this.userRepository.updateLastLogin(userId);
-    }
-
-    // ✅ PASSO 7: Revogar todos os tokens (força novo login)
+    // ✅ PASSO 6: Revogar todos os tokens (força novo login)
     await this.refreshTokenRepository.revokeAllForUser(userId);
 
-    // ✅ PASSO 8: Log
+    // ✅ PASSO 7: Log
     logger.info(
-      { userId, firstLogin: isFirstLogin },
-      isFirstLogin
-        ? 'Senha do primeiro login alterada. last_login_at definido.'
-        : 'Senha alterada com sucesso.'
+      { userId, firstLogin: wasRequired },
+      wasRequired ? 'Senha obrigatória alterada.' : 'Senha alterada com sucesso.'
     );
 
-    // ✅ PASSO 9: Retornar resposta
+    // ✅ PASSO 8: Retornar resposta
     return {
-      message: isFirstLogin
-        ? 'Senha alterada com sucesso. Bem-vindo ao sistema!'
+      message: wasRequired 
+        ? 'Senha alterada com sucesso. Bem-vindo ao sistema!' 
         : 'Senha alterada com sucesso.',
     };
   }

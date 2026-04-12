@@ -4,6 +4,7 @@
  * ✅ Permite atualizar: name, cpf, e todos os campos de endereço
  */
 
+const AppError = require('../../../shared/utils/AppError');
 const CacheService = require('../../../infrastructure/services/CacheService');
 const logger = require('../../../infrastructure/config/logger');
 
@@ -13,10 +14,13 @@ class UpdateProfileUseCase {
   }
 
   async execute(userId, updateProfileDTO) {
-    // ✅ Buscar usuário
+    // ✅ 1. Buscar usuário
     const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404);
+    }
 
-    // ✅ Atualizar perfil (regra do domínio)
+    // ✅ 2. Atualizar a instância da entidade (Lógica de Domínio)
     user.updateProfile({
       name: updateProfileDTO.name,
       cpf: updateProfileDTO.cpf,
@@ -29,30 +33,35 @@ class UpdateProfileUseCase {
       address_zip: updateProfileDTO.address_zip,
     });
 
-    // ✅ Persistir apenas os campos que mudaram
+    // ✅ 3. Mapear dinamicamente apenas os campos fornecidos no DTO para persistência
     const updateData = {};
-    if (updateProfileDTO.name !== undefined) updateData.name = user.name;
-    if (updateProfileDTO.cpf !== undefined) updateData.cpf = user.cpf;
-    if (updateProfileDTO.address_street !== undefined) updateData.address_street = user.address_street;
-    if (updateProfileDTO.address_number !== undefined) updateData.address_number = user.address_number;
-    if (updateProfileDTO.address_complement !== undefined) updateData.address_complement = user.address_complement;
-    if (updateProfileDTO.address_neighborhood !== undefined) updateData.address_neighborhood = user.address_neighborhood;
-    if (updateProfileDTO.address_city !== undefined) updateData.address_city = user.address_city;
-    if (updateProfileDTO.address_state !== undefined) updateData.address_state = user.address_state;
-    if (updateProfileDTO.address_zip !== undefined) updateData.address_zip = user.address_zip;
+    const profileFields = [
+      'name', 'cpf', 'address_street', 'address_number', 'address_complement',
+      'address_neighborhood', 'address_city', 'address_state', 'address_zip'
+    ];
 
-    const updated = await this.userRepository.update(userId, updateData);
+    profileFields.forEach(field => {
+      if (updateProfileDTO[field] !== undefined) {
+        // Usamos o valor que passou pela entidade para garantir que regras de domínio foram aplicadas
+        updateData[field] = user[field];
+      }
+    });
 
-    // ✅ Limpar cache
+    // ✅ 4. Persistir no banco de dados
+    const updatedUser = await this.userRepository.update(userId, updateData);
+
+    // ✅ 5. Invalidação de Cache
     await this._invalidateCache(userId);
 
-    logger.info({ userId }, 'Usuário atualizou o próprio perfil.');
+    logger.info({ userId }, 'Usuário atualizou o próprio perfil com sucesso.');
 
-    return updated;
+    return updatedUser;
   }
 
   async _invalidateCache(userId) {
     await CacheService.del(`users:${userId}`);
+    // Importante: Se o perfil mudar, a lista de usuários (cache do admin) também pode estar defasada
+    await CacheService.delPattern('users:list:*');
   }
 }
 

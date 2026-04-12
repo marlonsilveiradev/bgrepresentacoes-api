@@ -1,8 +1,7 @@
 /**
  * USE CASE: Update User
  * Atualizar usuário por admin
- * ✅ Permite atualizar: email, role, is_active
- * ⚠️ Para atualizar name/cpf/endereço, admin usa endpoint de perfil também
+ * ✅ Permite atualizar: email, role, is_active, name, cpf, endereço e senha
  */
 
 const AppError = require('../../../shared/utils/AppError');
@@ -43,11 +42,27 @@ class UpdateUserUseCase {
       }
     }
 
-    // ✅ REGRA 4: Atualizar dados
+    // ✅ REGRA 4: Preparar dados para atualização
     const updateData = {};
-    if (updateUserDTO.email !== undefined) updateData.email = updateUserDTO.email;
-    if (updateUserDTO.role !== undefined) updateData.role = updateUserDTO.role;
-    if (updateUserDTO.is_active !== undefined) updateData.is_active = updateUserDTO.is_active;
+    
+    // Mapeamento de campos de conta e perfil
+    const fields = [
+      'name', 'email', 'role', 'is_active', 'cpf',
+      'address_street', 'address_number', 'address_complement',
+      'address_neighborhood', 'address_city', 'address_state', 'address_zip'
+    ];
+
+    fields.forEach(field => {
+      if (updateUserDTO[field] !== undefined) {
+        updateData[field] = updateUserDTO[field];
+      }
+    });
+
+    // ✅ REGRA 5: Lógica de Reset de Senha pelo Admin
+    if (updateUserDTO.password) {
+      updateData.password = updateUserDTO.password;
+      updateData.must_change_password = true; // Força o usuário a trocar no próximo login
+    }
 
     const updated = await this.userRepository.update(targetId, updateData);
 

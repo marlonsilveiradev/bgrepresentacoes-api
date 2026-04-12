@@ -113,6 +113,7 @@ class User {
       address_zip: this.address_zip,
       role: this.role,
       is_active: this.is_active,
+      must_change_password: this.must_change_password,
       last_login_at: this.last_login_at,
       created_at: this.created_at,
       updated_at: this.updated_at,

@@ -34,10 +34,11 @@ class Auth {
   }
 
   /**
-   * REGRA DO DOMÍNIO: Verificar se é primeiro login
+   * REGRA DO DOMÍNIO: Verificar se a troca de senha é obrigatória
+   * ✅ Olha para a flag específica e não apenas para a data
    */
-  static isFirstLogin(lastLoginAt) {
-    return lastLoginAt === null || lastLoginAt === undefined;
+  static isChangePasswordRequired(user) {
+    return user.must_change_password === true;
   }
 
   /**
@@ -48,6 +49,7 @@ class Auth {
       sub: user.id,
       role: user.role,
       email: user.email,
+      mcp: user.must_change_password,
     };
   }
 }

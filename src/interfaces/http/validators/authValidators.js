@@ -25,7 +25,7 @@ const loginSchema = yup.object({
     .string()
     .required('Senha é obrigatória.')
     .trim(),
-});
+}).noUnknown(true).strict();
 
 // ─── Troca de Senha ───────────────────────────────────────────────────────────
 const changePasswordSchema = yup.object({
@@ -44,12 +44,12 @@ const changePasswordSchema = yup.object({
     .required('Confirmação de senha é obrigatória.')
     .oneOf([yup.ref('newPassword')], 'As senhas não coincidem.')
     .trim(),
-});
+}).noUnknown(true).strict();
 
   const refreshSchema = yup.object({
   refreshToken: yup
     .string()
     .required('Refresh token é obrigatório.'),
-});
+}).noUnknown(true).strict();
 
 module.exports = { loginSchema, changePasswordSchema, refreshSchema, STRONG_PASSWORD_REGEX, STRONG_PASSWORD_MESSAGE };

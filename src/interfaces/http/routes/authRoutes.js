@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const AuthController = require('../controllers/AuthController');
 const { authMiddleware } = require('../middlewares/authMiddleware');
-const { authLimiter } = require('../middlewares/rateLimiter');
+const { authLimiter, blacklistMiddleware } = require('../middlewares/rateLimiter');
 const { validate } = require('../middlewares/validationMiddleware');
 const { loginSchema, changePasswordSchema, refreshSchema } = require('../validators/authValidators');
 
@@ -49,6 +49,7 @@ const router = Router();
  */
 router.post(
   '/login',
+  blacklistMiddleware,
   authLimiter,
   validate(loginSchema, 'body'),
   AuthController.login
@@ -93,8 +94,9 @@ router.post(
  */
 router.patch(
   '/change-password',
-  authMiddleware,
+  blacklistMiddleware,
   authLimiter,
+  authMiddleware,
   validate(changePasswordSchema, 'body'),
   AuthController.changePassword
 );
@@ -122,7 +124,7 @@ router.patch(
  *       401:
  *         description: Refresh token inválido ou expirado
  */
-router.post('/refresh', authLimiter, validate(refreshSchema, 'body'), AuthController.refresh);
+router.post('/refresh', blacklistMiddleware, authLimiter, validate(refreshSchema, 'body'), AuthController.refresh);
 
 /**
  * @swagger
@@ -136,6 +138,6 @@ router.post('/refresh', authLimiter, validate(refreshSchema, 'body'), AuthContro
  *       200:
  *         description: Logout realizado com sucesso
  */
-router.post('/logout', authMiddleware, AuthController.logout);
+router.post('/logout', blacklistMiddleware, authMiddleware, AuthController.logout);
 
 module.exports = router;

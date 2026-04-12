@@ -4,7 +4,7 @@
  * Responsabilidade: Acessar BD e transformar em entidades
  */
 
-const { Op, where } = require('sequelize');
+const { Op } = require('sequelize');
 const { User: UserModel } = require('./models');
 const IUserRepository = require('../../domain/interfaces/IUserRepository');
 const User = require('../../domain/entities/User');
@@ -41,7 +41,7 @@ class UserRepository extends IUserRepository {
   async findByIdWithPassword(userId) {
     try {
       const user = await UserModel.findByPk(userId, {
-        attributes: ['id', 'password', 'is_active', 'last_login_at'],
+        attributes: ['id', 'password', 'is_active', 'last_login_at', 'must_change_password'],
       });
       return user;
     } catch (error) {
@@ -72,22 +72,6 @@ class UserRepository extends IUserRepository {
       throw error;
     }
   }
-
-  async updatePassword(userId, newPassword) {
-    try {
-      const user = await UserModel.findByPk(userId);
-      if (!user) {
-        throw new AppError('Usuário não encontrado', 404);
-      }
-      await user.update({ password: newPassword }, { hooks: true });
-      logger.info({ userId }, 'Senha atualizada');
-      return user;
-    } catch (error) {
-      logger.error('[UserRepository.updatePassword] Erro:', error.message);
-      throw error;
-    }
-  }
-
   async updateLastLogin(userId) {
     try {
       const user = await UserModel.findByPk(userId);
@@ -181,7 +165,16 @@ class UserRepository extends IUserRepository {
         email: user.email,
         password: password,
         role: user.role,
+        cpf: user.cpf,
+        address_street: user.address_street,
+        address_number: user.address_number,
+        address_complement: user.address_complement,
+        address_neighborhood: user.address_neighborhood,
+        address_city: user.address_city,
+        address_state: user.address_state,
+        address_zip: user.address_zip,
         is_active: user.is_active,
+        must_change_password: true,
         last_login_at: user.last_login_at,
       });
 
@@ -198,19 +191,10 @@ class UserRepository extends IUserRepository {
   async update(userId, data) {
     try {
       const model = await UserModel.findByPk(userId);
+      if (!model) return null;
 
-      if (!model) {
-        return null;
-      }
-
-      // Atualizar apenas campos fornecidos
-      const updateData = {};
-      if (data.name !== undefined) updateData.name = data.name;
-      if (data.email !== undefined) updateData.email = data.email;
-      if (data.role !== undefined) updateData.role = data.role;
-      if (data.is_active !== undefined) updateData.is_active = data.is_active;
-
-      await model.update(updateData);
+      // ✅ Aceita todos os campos (incluindo cpf, endereços e password)
+      await model.update(data); 
 
       return this.modelToEntity(model);
     } catch (error) {
@@ -292,6 +276,15 @@ class UserRepository extends IUserRepository {
       email: model.email,
       password: model.password,
       role: model.role,
+      cpf: model.cpf,
+      address_street: model.address_street,
+      address_number: model.address_number,
+      address_complement: model.address_complement,
+      address_neighborhood: model.address_neighborhood,
+      address_city: model.address_city,
+      address_state: model.address_state,
+      address_zip: model.address_zip,
+      must_change_password: model.must_change_password,
       is_active: model.is_active,
       last_login_at: model.last_login_at,
       created_at: model.created_at,
