@@ -1,4 +1,4 @@
-const UpdateClientFlagStatusUseCase = require('../../application/use-cases/client/UpdateClientFlagStatusUseCase');
+const UpdateClientFlagStatusUseCase = require('../../../application/use-cases/client/UpdateClientFlagStatusUseCase');
 const logger = require('../../../infrastructure/config/logger');
 
 class ClientFlagController {

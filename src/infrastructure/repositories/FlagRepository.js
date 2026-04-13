@@ -21,6 +21,11 @@ const IFlagRepository = require('../../domain/interfaces/IFlagRepository');
 const { Flag: FlagModel } = require('./models');
 
 class FlagRepository extends IFlagRepository {
+  constructor(model) {
+    super();
+    this.model = model || FlagModel;
+  }
+
   /**
    * Buscar flag por ID
    */

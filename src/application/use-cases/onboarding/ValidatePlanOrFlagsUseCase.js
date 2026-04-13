@@ -1,12 +1,28 @@
 /**
- * USE CASE: Validar Plano ou Bandeiras
- * Responsável por validar o plano ou bandeiras selecionadas
+ * USE CASE: Validar Plano ou Bandeiras (onboarding)
+ * Usa repositórios injetados ou os singletons do index (retrocompatível).
  */
 
-const { Plan, Flag } = require('../../../infrastructure/repositories/models');
 const AppError = require('../../../shared/utils/AppError');
 
+let defaultPlanRepository;
+let defaultFlagRepository;
+
+function loadDefaults() {
+  if (!defaultPlanRepository) {
+    const repos = require('../../../infrastructure/repositories');
+    defaultPlanRepository = repos.planRepository;
+    defaultFlagRepository = repos.flagRepository;
+  }
+}
+
 class ValidatePlanOrFlagsUseCase {
+  constructor(planRepository, flagRepository) {
+    loadDefaults();
+    this.planRepository = planRepository ?? defaultPlanRepository;
+    this.flagRepository = flagRepository ?? defaultFlagRepository;
+  }
+
   async execute(planId, flagIds) {
     const hasPlan = planId && typeof planId === 'string';
     const hasFlags = Array.isArray(flagIds) && flagIds.length > 0;
@@ -15,11 +31,8 @@ class ValidatePlanOrFlagsUseCase {
       throw new AppError('Informe um plano ou ao menos uma bandeira', 422);
     }
 
-    // ✅ Se tem plano
     if (hasPlan) {
-      const plan = await Plan.findByPk(planId, {
-        include: [{ model: Flag, as: 'flags', through: { attributes: [] } }],
-      });
+      const plan = await this.planRepository.findByIdWithFlags(planId);
 
       if (!plan) {
         throw new AppError('Plano selecionado é inválido ou não está ativo', 422);
@@ -32,10 +45,7 @@ class ValidatePlanOrFlagsUseCase {
       return { plan, selectedFlags: null };
     }
 
-    // ✅ Se tem bandeiras individuais
-    const flags = await Flag.findAll({
-      where: { id: flagIds, is_active: true },
-    });
+    const flags = await this.flagRepository.findActiveByIds(flagIds);
 
     if (flags.length !== flagIds.length) {
       throw new AppError('Uma ou mais bandeiras selecionadas são inválidas', 422);

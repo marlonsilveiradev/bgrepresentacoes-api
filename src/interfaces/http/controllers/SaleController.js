@@ -1,9 +1,9 @@
-const CreateSaleUseCase = require('../../application/use-cases/sale/CreateSaleUseCase');
-const GetSaleByIdUseCase = require('../../application/use-cases/sale/GetSaleByIdUseCase');
-const ListSalesUseCase = require('../../application/use-cases/sale/ListSalesUseCase');
-const UpdateSaleStatusUseCase = require('../../application/use-cases/sale/UpdateSaleStatusUseCase');
-const CancelSaleUseCase = require('../../application/use-cases/sale/CancelSaleUseCase');
-const logger = require('../../infrastructure/config/logger');
+const CreateSaleUseCase = require('../../../application/use-cases/sale/CreateSaleUseCase');
+const GetSaleByIdUseCase = require('../../../application/use-cases/sale/GetSaleByIdUseCase');
+const ListSalesUseCase = require('../../../application/use-cases/sale/ListSalesUseCase');
+const UpdateSaleStatusUseCase = require('../../../application/use-cases/sale/UpdateSaleStatusUseCase');
+const CancelSaleUseCase = require('../../../application/use-cases/sale/CancelSaleUseCase');
+const logger = require('../../../infrastructure/config/logger');
 
 class SaleController {
   static async list(req, res, next) {

@@ -8,8 +8,8 @@
  * ✅ Headers de segurança otimizados
  */
 
-const DownloadClientDocumentUseCase = require('../../application/use-cases/client-document/DownloadClientDocumentUseCase');
-const logger = require('../../infrastructure/config/logger');
+const DownloadClientDocumentUseCase = require('../../../application/use-cases/client-document/DownloadClientDocumentUseCase');
+const logger = require('../../../infrastructure/config/logger');
 
 class DocumentController {
   /**

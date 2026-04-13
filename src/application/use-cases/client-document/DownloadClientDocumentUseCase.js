@@ -29,10 +29,10 @@ class DownloadClientDocumentUseCase {
    * 4. Fazer download do Cloudinary (com timeout)
    * 5. Retornar buffer + metadados
    *
-   * **Controle de Acesso:**
-   * - Admin: acessa qualquer documento
-   * - User/Owner: acessa apenas documentos de clientes que criou
-   * - Partner: acessa apenas documentos de clientes vinculados
+ * **Controle de Acesso:**
+ * - Admin: acessa qualquer documento
+ * - User: acessa apenas documentos de clientes que criou (created_by)
+ * - Partner: sem permissão de download (negado na rota e na use case)
    *
    * @param {string} documentId - ID do documento (UUID)
    * @param {Object} requester - Dados do usuário autenticado (vem do middleware)
@@ -254,17 +254,31 @@ class DownloadClientDocumentUseCase {
    *
    * **Regras:**
    * - Admin: acessa QUALQUER documento
-   * - User (Owner): acessa apenas documentos de clientes que criou (created_by)
-   * - Partner: acessa apenas documentos de clientes vinculados (partner_id)
+   * - User: acessa apenas documentos de clientes que criou (created_by)
+   * - Partner: nunca autorizado (resposta uniforme 404)
    *
    * @private
    */
   _assertCanDownload(doc, requester, transactionId) {
+    if (requester.role === ROLES.PARTNER) {
+      logger.warn(
+        {
+          transactionId,
+          documentId: doc.id,
+          userId: requester.id,
+          userRole: requester.role,
+          reason: 'PARTNER_DOWNLOAD_FORBIDDEN',
+        },
+        '[DownloadClientDocumentUseCase._assertCanDownload] Parceiro sem permissão de download'
+      );
+
+      throw new AppError('Documento não encontrado.', 404, 'DOCUMENT_NOT_FOUND');
+    }
+
     const isAdmin = requester.role === ROLES.ADMIN;
     const isOwner = doc.client?.created_by === requester.id;
-    const isPartner = requester.role === ROLES.PARTNER && doc.client?.partner_id === requester.id;
 
-    if (!isAdmin && !isOwner && !isPartner) {
+    if (!isAdmin && !isOwner) {
       logger.warn(
         {
           transactionId,
@@ -272,8 +286,7 @@ class DownloadClientDocumentUseCase {
           userId: requester.id,
           userRole: requester.role,
           clientOwnerId: doc.client?.created_by,
-          clientPartnerId: doc.client?.partner_id,
-          reason: `Usuário não é admin, owner (${isOwner}) ou partner (${isPartner})`,
+          reason: `Usuário não é admin nem owner (${isOwner})`,
         },
         '[DownloadClientDocumentUseCase._assertCanDownload] Acesso negado'
       );
@@ -286,7 +299,7 @@ class DownloadClientDocumentUseCase {
         transactionId,
         documentId: doc.id,
         userId: requester.id,
-        reason: isAdmin ? 'admin' : isOwner ? 'owner' : 'partner',
+        reason: isAdmin ? 'admin' : 'owner',
       },
       '[DownloadClientDocumentUseCase._assertCanDownload] Permissão validada'
     );

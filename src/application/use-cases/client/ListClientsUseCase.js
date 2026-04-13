@@ -1,6 +1,7 @@
 const AppError = require('../../../shared/utils/AppError');
 const logger = require('../../../infrastructure/config/logger');
 const { ROLES } = require('../../../shared/constants/roles');
+const { buildPartnerClientView } = require('../../../shared/helpers/partnerClientView');
 
 class ListClientsUseCase {
   constructor(clientRepository) {
@@ -14,17 +15,20 @@ class ListClientsUseCase {
       // ✅ Filtros aplicados ao papel do usuário
       const accessFilter = this._buildAccessFilter(requester, partner_id);
 
+      const partnerInclude =
+        requester.role === ROLES.PARTNER ? this.clientRepository.partnerViewIncludes() : undefined;
+
       const { rows, count } = await this.clientRepository.findAll({
         where: { ...accessFilter, overall_status, benefit_type, search },
         limit,
         offset: (page - 1) * limit,
         order: [['created_at', 'DESC']],
+        include: partnerInclude,
       });
 
-      // ✅ Filtrar resposta se for parceiro
       let clients = rows;
       if (requester.role === ROLES.PARTNER) {
-        clients = rows.map(c => this._filterPartnerClient(c.toJSON()));
+        clients = rows.map(c => buildPartnerClientView(c));
       }
 
       return {
@@ -59,16 +63,6 @@ class ListClientsUseCase {
     }
 
     return { created_by: requester.id }; // User só vê clientes que criou
-  }
-
-  _filterPartnerClient(data) {
-    return {
-      id: data.id,
-      protocol: data.protocol,
-      corporate_name: data.corporate_name,
-      overall_status: data.overall_status,
-      created_at: data.created_at,
-    };
   }
 }
 

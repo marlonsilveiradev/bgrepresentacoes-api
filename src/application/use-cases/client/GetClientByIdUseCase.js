@@ -1,6 +1,7 @@
 const AppError = require('../../../shared/utils/AppError');
 const logger = require('../../../infrastructure/config/logger');
 const { ROLES } = require('../../../shared/constants/roles');
+const { buildPartnerClientView } = require('../../../shared/helpers/partnerClientView');
 
 class GetClientByIdUseCase {
   constructor(clientRepository) {
@@ -9,7 +10,10 @@ class GetClientByIdUseCase {
 
   async execute(clientId, requester) {
     try {
-      const client = await this.clientRepository.findById(clientId);
+      const isPartner = requester.role === ROLES.PARTNER;
+      const client = isPartner
+        ? await this.clientRepository.findByIdWithPartnerView(clientId)
+        : await this.clientRepository.findById(clientId);
 
       if (!client) {
         throw new AppError('Cliente não encontrado.', 404, 'CLIENT_NOT_FOUND');
@@ -18,14 +22,11 @@ class GetClientByIdUseCase {
       // ✅ Controle de acesso
       this._assertCanRead(client, requester);
 
-      // ✅ Formatação de resposta
-      const clientJson = client.toJSON();
-      
-      if (requester.role === ROLES.PARTNER) {
-        return this._filterPartnerClient(clientJson);
+      if (isPartner) {
+        return buildPartnerClientView(client);
       }
 
-      return clientJson;
+      return client.toJSON();
 
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -40,35 +41,25 @@ class GetClientByIdUseCase {
   }
 
   _assertCanRead(client, requester) {
-    const isAdmin = requester.role === ROLES.ADMIN;
-    const isOwner = client.created_by === requester.id;
-    const isPartner = requester.role === ROLES.PARTNER && client.partner_id === requester.id;
-
-    if (!isAdmin && !isOwner && !isPartner) {
-      throw new AppError('Você não tem permissão para visualizar este cliente.', 403);
+    if (requester.role === ROLES.ADMIN) {
+      return;
     }
-  }
 
-  _filterPartnerClient(data) {
-    return {
-      id: data.id,
-      protocol: data.protocol,
-      corporate_name: data.corporate_name,
-      trade_name: data.trade_name,
-      responsible_name: data.responsible_name,
-      cnpj: data.cnpj,
-      phone: data.phone,
-      email: data.email,
-      address_street: data.address_street,
-      address_number: data.address_number,
-      address_complement: data.address_complement,
-      address_neighborhood: data.address_neighborhood,
-      address_city: data.address_city,
-      address_state: data.address_state,
-      address_zip: data.address_zip,
-      overall_status: data.overall_status,
-      created_at: data.created_at,
-    };
+    if (requester.role === ROLES.PARTNER) {
+      if (client.partner_id !== requester.id) {
+        throw new AppError('Cliente não encontrado.', 404, 'CLIENT_NOT_FOUND');
+      }
+      return;
+    }
+
+    if (requester.role === ROLES.USER) {
+      if (client.created_by !== requester.id) {
+        throw new AppError('Cliente não encontrado.', 404, 'CLIENT_NOT_FOUND');
+      }
+      return;
+    }
+
+    throw new AppError('Cliente não encontrado.', 404, 'CLIENT_NOT_FOUND');
   }
 }
 

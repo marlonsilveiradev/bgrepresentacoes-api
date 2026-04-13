@@ -1,7 +1,7 @@
-const GetClientByIdUseCase = require('../../application/use-cases/client/GetClientByIdUseCase');
-const ListClientsUseCase = require('../../application/use-cases/client/ListClientsUseCase');
-const UpdateClientUseCase = require('../../application/use-cases/client/UpdateClientUseCase');
-const logger = require('../../infrastructure/config/logger');
+const GetClientByIdUseCase = require('../../../application/use-cases/client/GetClientByIdUseCase');
+const ListClientsUseCase = require('../../../application/use-cases/client/ListClientsUseCase');
+const UpdateClientUseCase = require('../../../application/use-cases/client/UpdateClientUseCase');
+const logger = require('../../../infrastructure/config/logger');
 
 class ClientController {
   static async getById(req, res, next) {

@@ -152,6 +152,10 @@ class UpdateClientUseCase {
   }
 
   _assertCanWrite(client, requester) {
+    if (requester.role === ROLES.PARTNER) {
+      throw new AppError('Parceiros não podem editar dados de clientes.', 403, 'PARTNER_UPDATE_FORBIDDEN');
+    }
+
     const isAdmin = requester.role === ROLES.ADMIN;
     const isOwner = client.created_by === requester.id;
 

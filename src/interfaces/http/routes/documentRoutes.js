@@ -31,7 +31,7 @@ const documentIdParamSchema = yup.object({
  *       Download de documento com controle de acesso:
  *       - Admin: acessa qualquer documento
  *       - User: acessa documentos de clientes que criou
- *       - Partner: acessa documentos de clientes vinculados
+ *       - Partner: não possui permissão de download
  *     tags: [Documents]
  *     security:
  *       - bearerAuth: []
@@ -54,7 +54,7 @@ router.get(
   '/:id/download',
   authMiddleware,
   defaultLimiter,
-  authorize('admin', 'user', 'partner'),
+  authorize('admin', 'user'),
   validate(documentIdParamSchema, 'params'),
   DocumentController.downloadDocument
 );

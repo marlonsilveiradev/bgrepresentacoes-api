@@ -79,11 +79,11 @@ router.use(authMiddleware);
  *                 pagination:
  *                   type: object
  *       400:
- *         description: Filtro inválido (strict mode ativado)
+ *         description: "Filtro inválido (strict mode ativado)"
  *       401:
- *         description: Não autenticado
+ *         description: "Não autenticado"
  *       403:
- *         description: Acesso negado por papel
+ *         description: "Acesso negado por papel"
  */
 router.get(
   '/',
@@ -224,7 +224,7 @@ router.get(
  *       404:
  *         description: Cliente, plano ou bandeira não encontrado
  *       422:
- *         description: Lógica de negócio violada (ex: plan_id e flag_ids ambos vazios)
+ *         description: "Lógica de negócio violada (ex: plan_id e flag_ids ambos vazios)"
  */
 router.post(
   '/',
